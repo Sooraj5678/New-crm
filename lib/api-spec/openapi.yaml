@@ -1,0 +1,1216 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Lead Management CRM API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: leads
+    description: Lead management
+  - name: notes
+    description: Lead notes
+  - name: calls
+    description: Call logs
+  - name: activities
+    description: Activity log
+  - name: dashboard
+    description: Dashboard stats
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all agents/users (admin only)
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new agent (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users/{id}/toggle-block:
+    patch:
+      operationId: toggleBlockUser
+      tags: [users]
+      summary: Block or unblock an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /leads:
+    get:
+      operationId: listLeads
+      tags: [leads]
+      summary: List leads
+      parameters:
+        - name: agentId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: followUpFrom
+          in: query
+          schema:
+            type: string
+        - name: followUpTo
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated leads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadListResponse"
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Create a lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/import:
+    post:
+      operationId: importLeads
+      tags: [leads]
+      summary: Import leads from CSV data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadImportResult"
+
+  /dialer/sessions:
+    post:
+      operationId: createDialerSession
+      tags: [leads]
+      summary: Start a new dialer session
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DialerSession"
+
+  /dialer/sessions/{id}:
+    get:
+      operationId: getDialerSession
+      tags: [leads]
+      summary: Get dialer session by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DialerSession"
+    patch:
+      operationId: endDialerSession
+      tags: [leads]
+      summary: End a dialer session and save stats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DialerSessionUpdate"
+      responses:
+        "200":
+          description: Session ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DialerSession"
+
+  /leads/next-dialer:
+    get:
+      operationId: getNextDialerLead
+      tags: [leads]
+      summary: Get next lead for auto dialer
+      parameters:
+        - name: exclude
+          in: query
+          required: false
+          description: Comma-separated lead IDs to exclude (already called this session)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Next lead or exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DialerResponse"
+
+  /leads/{id}:
+    get:
+      operationId: getLead
+      tags: [leads]
+      summary: Get lead by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lead with full history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+    patch:
+      operationId: updateLead
+      tags: [leads]
+      summary: Update lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+    delete:
+      operationId: deleteLead
+      tags: [leads]
+      summary: Delete lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /leads/{id}/assign:
+    patch:
+      operationId: assignLead
+      tags: [leads]
+      summary: Assign lead to agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadAssignInput"
+      responses:
+        "200":
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/{id}/close:
+    patch:
+      operationId: closeLead
+      tags: [leads]
+      summary: Close lead as won with revenue
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadCloseInput"
+      responses:
+        "200":
+          description: Closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/{id}/notes:
+    get:
+      operationId: listLeadNotes
+      tags: [notes]
+      summary: List notes for a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeadNote"
+    post:
+      operationId: addLeadNote
+      tags: [notes]
+      summary: Add note to a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadNoteInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadNote"
+
+  /leads/{id}/calls:
+    get:
+      operationId: listLeadCalls
+      tags: [calls]
+      summary: List call logs for a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Call logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeadCall"
+    post:
+      operationId: logLeadCall
+      tags: [calls]
+      summary: Log a call for a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadCallInput"
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadCall"
+
+  /leads/{id}/activities:
+    get:
+      operationId: listLeadActivities
+      tags: [activities]
+      summary: Get full activity timeline for a lead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get admin dashboard stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/agent-stats:
+    get:
+      operationId: getAgentStats
+      tags: [dashboard]
+      summary: Get stats for current agent
+      responses:
+        "200":
+          description: Agent stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentStats"
+
+  /dashboard/revenue-chart:
+    get:
+      operationId: getRevenueChart
+      tags: [dashboard]
+      summary: Get monthly revenue chart data
+      parameters:
+        - name: months
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Revenue chart
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenueChartPoint"
+
+  /dashboard/agent-leaderboard:
+    get:
+      operationId: getAgentLeaderboard
+      tags: [dashboard]
+      summary: Get agent leaderboard
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentLeaderboardEntry"
+
+  /dashboard/status-breakdown:
+    get:
+      operationId: getStatusBreakdown
+      tags: [dashboard]
+      summary: Get lead count by status
+      responses:
+        "200":
+          description: Status breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StatusBreakdownEntry"
+
+  /activities:
+    get:
+      operationId: listActivities
+      tags: [activities]
+      summary: List recent activities
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: ["string", "null"]
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+
+    User:
+      type: object
+      required: [id, name, email, role, isBlocked, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, agent]
+        isBlocked:
+          type: boolean
+        phone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    UserInput:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, agent]
+        phone:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        password:
+          type: string
+
+    Lead:
+      type: object
+      required: [id, name, mobile, status, priority, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        mobile:
+          type: string
+        alternateMobile:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        company:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        source:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [new, interested, follow_up, not_interested, busy, callback_later, converted, closed_won, closed_lost]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        followUpDate:
+          type: ["string", "null"]
+        assignedAgentId:
+          type: ["integer", "null"]
+        assignedAgentName:
+          type: ["string", "null"]
+        revenueAmount:
+          type: ["number", "null"]
+        closingRemark:
+          type: ["string", "null"]
+        closingDate:
+          type: ["string", "null"]
+        lastCalledAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    LeadDetail:
+      type: object
+      required: [id, name, mobile, status, priority, createdAt, updatedAt, notes, calls, activities]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        mobile:
+          type: string
+        alternateMobile:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        company:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        state:
+          type: ["string", "null"]
+        source:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [new, interested, follow_up, not_interested, busy, callback_later, converted, closed_won, closed_lost]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        followUpDate:
+          type: ["string", "null"]
+        assignedAgentId:
+          type: ["integer", "null"]
+        assignedAgentName:
+          type: ["string", "null"]
+        revenueAmount:
+          type: ["number", "null"]
+        closingRemark:
+          type: ["string", "null"]
+        closingDate:
+          type: ["string", "null"]
+        lastCalledAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadNote"
+        calls:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadCall"
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/Activity"
+
+    LeadListResponse:
+      type: object
+      required: [leads, total, page, limit]
+      properties:
+        leads:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    LeadInput:
+      type: object
+      required: [name, mobile, status, priority]
+      properties:
+        name:
+          type: string
+        mobile:
+          type: string
+        alternateMobile:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        source:
+          type: string
+        status:
+          type: string
+          enum: [new, interested, follow_up, not_interested, busy, callback_later, converted, closed_won, closed_lost]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        followUpDate:
+          type: string
+        assignedAgentId:
+          type: integer
+
+    LeadUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        mobile:
+          type: string
+        alternateMobile:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        source:
+          type: string
+        status:
+          type: string
+          enum: [new, interested, follow_up, not_interested, busy, callback_later, converted, closed_won, closed_lost]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        followUpDate:
+          type: string
+        assignedAgentId:
+          type: integer
+
+    LeadAssignInput:
+      type: object
+      required: [agentId]
+      properties:
+        agentId:
+          type: integer
+
+    LeadCloseInput:
+      type: object
+      required: [revenueAmount, closingRemark]
+      properties:
+        revenueAmount:
+          type: number
+        closingRemark:
+          type: string
+        status:
+          type: string
+          enum: [closed_won, closed_lost]
+
+    LeadImportInput:
+      type: object
+      required: [leads]
+      properties:
+        leads:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadInput"
+
+    LeadImportResult:
+      type: object
+      required: [imported, failed]
+      properties:
+        imported:
+          type: integer
+        failed:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+
+    LeadNote:
+      type: object
+      required: [id, leadId, content, agentId, agentName, createdAt]
+      properties:
+        id:
+          type: integer
+        leadId:
+          type: integer
+        content:
+          type: string
+        callOutcome:
+          type: ["string", "null"]
+        followUpDate:
+          type: ["string", "null"]
+        agentId:
+          type: integer
+        agentName:
+          type: string
+        createdAt:
+          type: string
+
+    LeadNoteInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+        callOutcome:
+          type: string
+        followUpDate:
+          type: string
+
+    LeadCall:
+      type: object
+      required: [id, leadId, agentId, agentName, startedAt]
+      properties:
+        id:
+          type: integer
+        leadId:
+          type: integer
+        agentId:
+          type: integer
+        agentName:
+          type: string
+        startedAt:
+          type: string
+        endedAt:
+          type: ["string", "null"]
+        duration:
+          type: ["integer", "null"]
+        outcome:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        sessionId:
+          type: ["integer", "null"]
+
+    LeadCallInput:
+      type: object
+      required: [startedAt]
+      properties:
+        startedAt:
+          type: string
+        endedAt:
+          type: string
+        duration:
+          type: integer
+        outcome:
+          type: string
+        notes:
+          type: string
+        sessionId:
+          type: integer
+
+    DialerSession:
+      type: object
+      required: [id, agentId, startedAt, totalCalls, connectedCalls, followUpsScheduled, dealsWon, revenueGenerated]
+      properties:
+        id:
+          type: integer
+        agentId:
+          type: integer
+        startedAt:
+          type: string
+        endedAt:
+          type: ["string", "null"]
+        totalCalls:
+          type: integer
+        connectedCalls:
+          type: integer
+        followUpsScheduled:
+          type: integer
+        dealsWon:
+          type: integer
+        revenueGenerated:
+          type: number
+
+    DialerSessionUpdate:
+      type: object
+      properties:
+        totalCalls:
+          type: integer
+        connectedCalls:
+          type: integer
+        followUpsScheduled:
+          type: integer
+        dealsWon:
+          type: integer
+        revenueGenerated:
+          type: number
+
+    Activity:
+      type: object
+      required: [id, type, description, agentId, agentName, createdAt]
+      properties:
+        id:
+          type: integer
+        leadId:
+          type: ["integer", "null"]
+        leadName:
+          type: ["string", "null"]
+        type:
+          type: string
+        description:
+          type: string
+        agentId:
+          type: integer
+        agentName:
+          type: string
+        createdAt:
+          type: string
+
+    DialerResponse:
+      type: object
+      required: [exhausted]
+      properties:
+        exhausted:
+          type: boolean
+        remainingCount:
+          type: integer
+        lead:
+          $ref: "#/components/schemas/LeadDetail"
+
+    DashboardStats:
+      type: object
+      required: [totalLeads, totalCalls, connectedCalls, conversionRate, totalRevenue, closedDeals, totalAgents]
+      properties:
+        totalLeads:
+          type: integer
+        totalCalls:
+          type: integer
+        connectedCalls:
+          type: integer
+        conversionRate:
+          type: number
+        totalRevenue:
+          type: number
+        closedDeals:
+          type: integer
+        totalAgents:
+          type: integer
+        newLeadsToday:
+          type: integer
+        followUpsDue:
+          type: integer
+
+    AgentStats:
+      type: object
+      required: [leadsAssigned, callsCompleted, followUpsPending, dealsClosed, revenueGenerated]
+      properties:
+        leadsAssigned:
+          type: integer
+        callsCompleted:
+          type: integer
+        followUpsPending:
+          type: integer
+        dealsClosed:
+          type: integer
+        revenueGenerated:
+          type: number
+
+    RevenueChartPoint:
+      type: object
+      required: [month, revenue, deals]
+      properties:
+        month:
+          type: string
+        revenue:
+          type: number
+        deals:
+          type: integer
+
+    AgentLeaderboardEntry:
+      type: object
+      required: [agentId, agentName, dealsClosed, revenueGenerated, leadsAssigned, callsMade]
+      properties:
+        agentId:
+          type: integer
+        agentName:
+          type: string
+        dealsClosed:
+          type: integer
+        revenueGenerated:
+          type: number
+        leadsAssigned:
+          type: integer
+        callsMade:
+          type: integer
+
+    StatusBreakdownEntry:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          type: string
+        count:
+          type: integer

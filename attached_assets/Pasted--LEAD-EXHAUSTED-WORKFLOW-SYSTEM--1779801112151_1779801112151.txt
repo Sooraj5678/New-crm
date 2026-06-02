@@ -1,0 +1,128 @@
+====================================================
+LEAD EXHAUSTED WORKFLOW SYSTEM
+==============================
+
+Add complete Lead Exhausted logic in autodialer workflow.
+
+The goal:
+Once all assigned leads are completed/called, the system must automatically stop autodialer and show Lead Exhausted state.
+
+====================================================
+WHEN LEAD SHOULD BE MARKED COMPLETED
+====================================
+
+A lead is considered completed when:
+
+* Agent finishes call
+* Saves notes
+* Updates lead status
+* Schedules follow-up OR closes lead
+
+After saving:
+System should automatically mark:
+
+* Current lead = Completed for current session
+
+====================================================
+AUTO NEXT LEAD LOGIC
+====================
+
+After each completed lead:
+
+1. Save:
+
+* Call log
+* Notes
+* Status
+* Follow-up
+* Revenue if applicable
+
+2. Fetch next available assigned lead
+
+3. If next lead exists:
+
+* Automatically open next lead
+* Continue autodialer workflow
+
+4. If NO leads remain:
+   Automatically trigger Lead Exhausted screen
+
+====================================================
+LEAD EXHAUSTED SCREEN
+=====================
+
+Show premium fullscreen UI:
+
+TITLE:
+"Lead Exhausted"
+
+MESSAGE:
+"No More Leads Remaining For Calling"
+
+Show:
+
+* Total calls completed
+* Total connected calls
+* Total follow-ups scheduled
+* Total deals closed
+* Revenue generated
+
+Buttons:
+
+* Refresh Leads
+* Request More Leads
+* End Calling Session
+* Return To Dashboard
+
+====================================================
+AUTO SESSION END
+================
+
+If no leads remain:
+
+* Stop autodialer automatically
+* Stop timers
+* End active calling session
+* Save session summary
+
+====================================================
+SMART LEAD FILTERING
+====================
+
+Do NOT show:
+
+* Already completed leads
+* Already called leads in same session
+* Closed leads
+* Duplicate completed leads
+
+Only show:
+
+* Pending assigned leads
+* Follow-up due leads
+* New leads
+
+====================================================
+REAL-TIME LEAD COUNT
+====================
+
+Show live counter:
+
+* Remaining Leads
+* Calls Completed
+* Leads Left
+
+Example:
+"12 Leads Remaining"
+
+====================================================
+FINAL REQUIREMENT
+=================
+
+The autodialer should work like a professional sales calling system where:
+
+* Leads move automatically one by one
+* Completed leads disappear from queue
+* System continuously loads next lead
+* When all leads finish, Lead Exhausted screen appears automatically
+* Agent clearly knows calling session is completed

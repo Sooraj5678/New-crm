@@ -1,0 +1,292 @@
+Build a complete Lead Management + Auto Dialer CRM Website for Sales Teams.
+
+The platform should work like a modern sales CRM + autodialer system where:
+
+* Admin can manage all leads
+* Sales agents can call/manage assigned leads
+* Leads can be added, edited, deleted
+* Notes and follow-ups can be added
+* Revenue tracking after closing lead
+* Auto dialer functionality
+* Lead history and full activity tracking
+* Real-time dashboard and reports
+
+The UI must look modern, premium, fast, and mobile responsive.
+
+Use:
+
+* React / Next.js frontend
+* Node.js backend
+* PostgreSQL database
+* Tailwind CSS UI
+* Role-based authentication
+* JWT/Auth session system
+
+1. ADMIN
+2. SALES AGENT
+
+Admin should have full access to everything.
+
+Admin can:
+
+* Add leads manually
+* Import leads via CSV/Excel
+* Edit leads
+* Delete leads
+* Assign leads to agents
+* Reassign leads
+* View all lead records
+* View call logs
+* View notes
+* View revenue reports
+* View closed deals
+* View conversion analytics
+* View agent performance
+* Create users/agents
+* Block/unblock agents
+* Download reports
+
+Sales agent dashboard must include:
+
+* Assigned leads list
+* Auto dialer
+* Call next lead button
+* Add notes/comments
+* Edit lead details
+* Update lead status
+* Schedule follow-ups
+* Add closing revenue
+* View own performance stats
+
+Sales agents should NOT access other agent leads.
+
+Each lead should contain:
+
+* Lead ID
+
+* Name
+
+* Mobile number
+
+* Alternate number
+
+* Email
+
+*
+
+* City/State
+
+* Lead status
+
+* Priority
+
+* Follow-up date
+
+* Last updated
+
+* Notes history
+
+* Call history
+
+* Revenue amount
+
+* Closing remarks
+
+Statuses:
+
+* New
+* Interested
+* Follow-up
+* Not Interested
+* Busy
+* Callback Later
+* Converted
+* Closed Won
+* Closed Lost
+
+Color-coded status badges required.
+
+Implement auto dialer workflow:
+
+1. Agent clicks "Start Auto Dialer"
+2. System automatically opens/calls next lead
+3. Show lead details instantly
+4. Agent can:
+
+   * Add note
+   * Change status
+   * Schedule follow-up
+   * Skip lead
+5. After completing one lead:
+
+   * Automatically move to next lead
+
+If all assigned leads are completed:
+Show:
+"Lead Exhausted — No More Leads Remaining"
+
+Every action must be logged.
+
+Track:
+
+* Call start/end time
+* Agent name
+* Notes added
+* Status changed
+* Revenue added
+* Follow-up changes
+* Lead reassignment
+* Edit history
+
+Maintain full lead timeline/history.
+
+Sales agents can add unlimited notes.
+
+Each note should store:
+
+* Note content
+* Timestamp
+* Agent name
+* Follow-up date
+* Call outcome
+
+Notes should appear in chronological timeline format.
+
+When lead status changes to:
+"Closed Won"
+
+System MUST REQUIRE:
+
+* Revenue amount
+* Closing note/comment
+
+Before saving.
+
+Store:
+
+* Deal amount
+* Closing date
+* Agent name
+* Closing remark
+
+Admin dashboard should show:
+
+* Total revenue
+* Revenue by agent
+* Monthly revenue
+* Closed deals count
+
+ADMIN DASHBOARD:
+
+* Total leads
+* Total calls
+* Connected calls
+* Conversion rate
+* Total revenue
+* Closed deals
+* Agent leaderboard
+* Daily/weekly/monthly charts
+
+AGENT DASHBOARD:
+
+* Leads assigned
+* Calls completed
+* Follow-ups pending
+* Deals closed
+* Revenue generated
+
+Add advanced filtering:
+
+* By agent
+* By status
+* By date
+* By city
+* By source
+* By follow-up date
+* By revenue
+* By priority
+
+Global search should search:
+
+* Name
+* Number
+* Email
+* Company
+
+Admin can:
+
+* Upload CSV/Excel leads
+* Export reports
+* Export closed deals
+* Export revenue reports
+
+Add notifications for:
+
+* New assigned lead
+* Follow-up reminder
+* Closed deal
+* Revenue added
+* Missed follow-up
+
+Implement:
+
+* Secure login
+* JWT authentication
+* Password hashing
+* Role-based access
+* Session management
+* Activity logs
+
+Create proper scalable tables:
+
+* users
+* leads
+* lead_notes
+* lead_calls
+* lead_assignments
+* lead_status_history
+* revenues
+* activities
+* followups
+
+- Premium CRM dashboard UI
+- Mobile responsive
+- Fast loading
+- Dark/light mode
+- Sidebar navigation
+- Table + Kanban lead views
+- Charts and analytics
+- Toast notifications
+- Pagination
+
+Add:
+
+* Lead priority system
+* Duplicate lead detection
+* Reminder scheduler
+* WhatsApp quick action
+* Click-to-call button
+* Lead timeline view
+* Agent attendance/login tracking
+
+The system must behave like a professional sales CRM + autodialer platform where:
+
+* Admin has complete control
+* Sales agents efficiently call/manage leads
+* Revenue tracking works properly
+* Every lead has complete records/history
+* Auto dialer automatically cycles through leads
+* Exhausted leads state appears when no leads remain
+
+Generate:
+
+* Full frontend
+* Full backend
+* Database schema
+* APIs
+* Dashboard pages
+* Authentication system
+* CRM workflow
+* Auto dialer workflow
+* Revenue management workflow
+* Complete responsive UI

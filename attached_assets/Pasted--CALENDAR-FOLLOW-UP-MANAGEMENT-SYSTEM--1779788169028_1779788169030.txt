@@ -1,0 +1,124 @@
+====================================================
+CALENDAR & FOLLOW-UP MANAGEMENT SYSTEM
+======================================
+
+Add a complete Calendar Page for follow-up management.
+
+The calendar should have:
+
+* Daily view
+* Weekly view
+* Monthly view
+* Smooth modern UI
+* Color-coded follow-up indicators
+* Responsive design
+
+====================================================
+CALENDAR FOLLOW-UP FLOW
+=======================
+
+1. When user opens Calendar Page:
+
+   * Show all scheduled follow-ups on dates
+   * Highlight dates having follow-ups
+   * Different colors for:
+
+     * High priority
+     * Missed follow-up
+     * Closed deal
+     * Upcoming follow-up
+
+2. When user clicks a date:
+   Open a smooth popup/modal showing:
+
+   * All follow-ups scheduled for that date
+   * Lead name
+   * Mobile number
+   * Assigned sales agent
+   * Follow-up time
+   * Lead status
+   * Priority badge
+
+3. When user clicks a specific lead inside popup:
+   Open another premium smooth side modal/drawer with full lead details.
+
+====================================================
+LEAD DETAIL POPUP/DRAWER
+========================
+
+Inside lead detail popup show:
+
+* Lead full information
+* Contact details
+* Lead status
+* Follow-up history
+* Complete notes timeline
+* Call history
+* Revenue details
+* Last activity
+* Assigned agent
+* Next follow-up date
+* Important remarks/comments
+
+====================================================
+QUICK ACTIONS INSIDE POPUP
+==========================
+
+Allow quick actions directly from popup:
+
+* Add note
+* Change status
+* Schedule next follow-up
+* Start call
+* WhatsApp message
+* Mark as closed won/lost
+* Add revenue
+* Edit lead
+
+====================================================
+MISSED FOLLOW-UP SYSTEM
+=======================
+
+If follow-up date passes and no update is done:
+
+* Automatically mark as "Missed Follow-up"
+* Show red indicator on calendar
+* Notify assigned agent
+* Notify admin
+
+====================================================
+CALENDAR FILTERS
+================
+
+Add filters:
+
+* By sales agent
+* By lead status
+* By priority
+* By follow-up type
+* By date range
+
+====================================================
+UI/UX REQUIREMENTS
+==================
+
+* Smooth animations
+* Modern popup transitions
+* Fast loading
+* Real-time updates
+* Premium CRM-style calendar design
+* Mobile responsive
+* Drag & drop follow-up rescheduling
+* Hover preview on calendar dates
+
+====================================================
+FINAL REQUIREMENT
+=================
+
+Calendar should work as a complete follow-up management center where:
+
+* Sales agents can manage daily tasks
+* Admin can monitor all follow-ups
+* Missed follow-ups are tracked
+* Lead details are accessible instantly
+* Notes and important information appear in smooth interactive popups

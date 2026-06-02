@@ -1,7 +1,15 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.SESSION_SECRET || "crm-secret-key-change-in-prod";
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  throw new Error(
+    "SESSION_SECRET environment variable is required in production. " +
+      "Generate one with: openssl rand -base64 32",
+  );
+}
+
+const JWT_SECRET =
+  process.env.SESSION_SECRET || "crm-secret-key-change-in-prod";
 
 export interface AuthPayload {
   userId: number;
@@ -17,7 +25,11 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   const header = req.headers.authorization;
   if (!header || !header.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -33,7 +45,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+export function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   if (!req.auth || req.auth.role !== "admin") {
     res.status(403).json({ error: "Forbidden" });
     return;

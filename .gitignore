@@ -1,4 +1,4 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # compiled output
 dist
@@ -10,6 +10,15 @@ out-tsc
 
 # dependencies
 node_modules
+
+# environment variables — never commit secrets
+.env
+.env.*
+!.env.example
+
+# large binary / zip uploads
+zipFile.zip
+*.zip
 
 # IDEs and editors
 /.idea

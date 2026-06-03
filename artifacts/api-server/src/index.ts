@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, runMigrations } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const rawPort = process.env["PORT"];
@@ -41,17 +41,23 @@ async function seedDemoUsers() {
   }
 }
 
-seedDemoUsers()
-  .then(() => {
-    app.listen(port, (err) => {
-      if (err) {
-        logger.error({ err }, "Error listening on port");
-        process.exit(1);
-      }
-      logger.info({ port }, "Server listening");
-    });
-  })
-  .catch((err) => {
-    logger.error({ err }, "Failed to seed demo users — starting anyway");
-    app.listen(port, () => logger.info({ port }, "Server listening"));
+async function bootstrap() {
+  logger.info("Running database migrations...");
+  await runMigrations();
+  logger.info("Migrations complete");
+
+  await seedDemoUsers();
+
+  app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
+    logger.info({ port }, "Server listening");
   });
+}
+
+bootstrap().catch((err) => {
+  logger.error({ err }, "Failed to start server");
+  process.exit(1);
+});

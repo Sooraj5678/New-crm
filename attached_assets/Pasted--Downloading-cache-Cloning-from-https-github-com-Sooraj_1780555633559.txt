@@ -1,0 +1,35 @@
+==> Downloading cache...
+==> Cloning from https://github.com/Sooraj5678/New-crm
+==> Checking out commit 55705326f01578efa02152caaefa4c5b3c00b826 in branch main
+==> Downloaded 128MB in 7s. Extraction took 3s.
+==> Using Node.js version 24.14.1 (default)
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+==> Running build command 'npx pnpm@9 install --no-frozen-lockfile && npx pnpm@9 --filter @workspace/api-server run build'...
+(node:115) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+> @workspace/api-server@0.0.0 build /opt/render/project/src/artifacts/api-server
+> node ./build.mjs
+  dist/index.mjs                       2.4mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.1kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   4.1mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           204.0kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+⚡ Done in 461ms
+==> Uploading build...
+==> Uploaded in 2.1s. Compression took 0.8s
+==> Build successful 🎉
+==> Deploying...
+==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+==> Running 'node --enable-source-maps ./dist/index.mjs'
+{"level":30,"time":1780555411052,"pid":75,"hostname":"srv-d8ghpq3bc2fs73ejdd00-hibernate-7ff9b88788-dp6kq","msg":"Running database migrations..."}
+{"level":50,"time":1780555411149,"pid":75,"hostname":"srv-d8ghpq3bc2fs73ejdd00-hibernate-7ff9b88788-dp6kq","err":{"type":"Error","message":"connect ENETUNREACH 2406:da1a:b00:1301:5034:1e76:8a5a:dba2:5432 - Local (:::0)","stack":"Error: connect ENETUNREACH 2406:da1a:b00:1301:5034:1e76:8a5a:dba2:5432 - Local (:::0)\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runMigrations (/opt/render/project/src/lib/db/src/migrate.ts:129:5)\n    at async bootstrap (/opt/render/project/src/artifacts/api-server/src/index.ts:46:3)","errno":-101,"code":"ENETUNREACH","syscall":"connect","address":"2406:da1a:b00:1301:5034:1e76:8a5a:dba2","port":5432},"msg":"Failed to start server"}
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+==> Running 'node --enable-source-maps ./dist/index.mjs'
+{"level":30,"time":1780555420180,"pid":59,"hostname":"srv-d8ghpq3bc2fs73ejdd00-hibernate-7ff9b88788-dp6kq","msg":"Running database migrations..."}
+{"level":50,"time":1780555420192,"pid":59,"hostname":"srv-d8ghpq3bc2fs73ejdd00-hibernate-7ff9b88788-dp6kq","err":{"type":"Error","message":"connect ENETUNREACH 2406:da1a:b00:1301:5034:1e76:8a5a:dba2:5432 - Local (:::0)","stack":"Error: connect ENETUNREACH 2406:da1a:b00:1301:5034:1e76:8a5a:dba2:5432 - Local (:::0)\n    at <anonymous> (/opt/render/project/src/node_modules/.pnpm/pg-pool@3.13.0_pg@8.20.0/node_modules/pg-pool/index.js:45:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async runMigrations (/opt/render/project/src/lib/db/src/migrate.ts:129:5)\n    at async bootstrap (/opt/render/project/src/artifacts/api-server/src/index.ts:46:3)","errno":-101,"code":"ENETUNREACH","syscall":"connect","address":"2406:da1a:b00:1301:5034:1e76:8a5a:dba2","port":5432},"msg":"Failed to start server"}

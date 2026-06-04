@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm install --frozen-lockfile && BASE_PATH=/ pnpm --filter @workspace/crm run build",
+  "buildCommand": "npx pnpm@9 install --no-frozen-lockfile && BASE_PATH=/ npx pnpm@9 --filter @workspace/crm run build",
   "outputDirectory": "artifacts/crm/dist/public",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "echo 'skip'",
   "framework": null,
   "rewrites": [
     {

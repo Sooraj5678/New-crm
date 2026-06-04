@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useListLeads, useCreateLead, useDeleteLead, useAssignLead, useImportLeads, useListUsers, getListLeadsQueryKey } from "@workspace/api-client-react";
+import { useListLeads, useCreateLead, useDeleteLead, useAssignLead, useImportLeads, useListUsers, getListLeadsQueryKey, customFetch, ApiError } from "@workspace/api-client-react";
 import type { ListLeadsParams } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Trash2, UserCheck, Upload, ChevronLeft, ChevronRight, Loader2, Target, X, Download, Briefcase, UserCog, CheckSquare, Square } from "lucide-react";
@@ -7,7 +7,6 @@ import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
 import { formatDate, STATUS_LABELS, PRIORITY_LABELS, ALL_STATUSES, ALL_PRIORITIES } from "@/lib/utils";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { getAuthHeaders } from "@/lib/apiClient";
 
 export default function AdminLeads() {
   const qc = useQueryClient();
@@ -184,22 +183,30 @@ export default function AdminLeads() {
 
   const handleBulkAssign = async () => {
     if (!bulkAssignAgentId || selectedIds.size === 0) return;
+    const leadIds = Array.from(selectedIds);
+    const agentId = parseInt(bulkAssignAgentId, 10);
+    if (isNaN(agentId) || agentId <= 0) { toast.error("Please select a valid agent"); return; }
+
     setIsBulkAssigning(true);
     try {
-      const res = await fetch("/api/leads/bulk-assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ leadIds: Array.from(selectedIds), agentId: parseInt(bulkAssignAgentId) }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      const result = await res.json();
-      qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+      const result = await customFetch<{ updated: number; agentId: number; agentName: string }>(
+        "/api/leads/bulk-assign",
+        {
+          method: "POST",
+          body: JSON.stringify({ leadIds, agentId }),
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      await qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
       setSelectedIds(new Set());
       setShowBulkAssign(false);
       setBulkAssignAgentId("");
-      toast.success(`Assigned ${result.updated} lead${result.updated !== 1 ? "s" : ""} successfully`);
-    } catch {
-      toast.error("Bulk assign failed");
+      toast.success(`${result.updated} lead${result.updated !== 1 ? "s" : ""} assigned to ${result.agentName}`);
+    } catch (err) {
+      const msg = err instanceof ApiError
+        ? (err.data as { error?: string } | null)?.error ?? err.message
+        : "Bulk assign failed";
+      toast.error(msg);
     } finally {
       setIsBulkAssigning(false);
     }
@@ -208,20 +215,26 @@ export default function AdminLeads() {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Delete ${selectedIds.size} selected lead${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`)) return;
+    const leadIds = Array.from(selectedIds);
+
     setIsBulkDeleting(true);
     try {
-      const res = await fetch("/api/leads/bulk-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ leadIds: Array.from(selectedIds) }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      const result = await res.json();
-      qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+      const result = await customFetch<{ deleted: number }>(
+        "/api/leads/bulk-delete",
+        {
+          method: "POST",
+          body: JSON.stringify({ leadIds }),
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+      await qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
       setSelectedIds(new Set());
-      toast.success(`Deleted ${result.deleted} lead${result.deleted !== 1 ? "s" : ""} successfully`);
-    } catch {
-      toast.error("Bulk delete failed");
+      toast.success(`${result.deleted} lead${result.deleted !== 1 ? "s" : ""} deleted successfully`);
+    } catch (err) {
+      const msg = err instanceof ApiError
+        ? (err.data as { error?: string } | null)?.error ?? err.message
+        : "Bulk delete failed";
+      toast.error(msg);
     } finally {
       setIsBulkDeleting(false);
     }

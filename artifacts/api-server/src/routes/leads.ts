@@ -329,31 +329,78 @@ router.patch("/leads/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.post("/leads/bulk-assign", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const { leadIds, agentId } = req.body;
+
   if (!Array.isArray(leadIds) || leadIds.length === 0) {
     res.status(400).json({ error: "leadIds must be a non-empty array" }); return;
   }
-  if (!agentId) {
+  if (agentId === undefined || agentId === null || agentId === "") {
     res.status(400).json({ error: "agentId is required" }); return;
   }
-  const parsedAgentId = parseInt(agentId, 10);
-  const [agent] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, parsedAgentId));
-  if (!agent) { res.status(404).json({ error: "Agent not found" }); return; }
 
-  const validIds = leadIds.map(Number).filter(n => !isNaN(n) && n > 0);
-  await db.update(leadsTable).set({ assignedAgentId: parsedAgentId }).where(inArray(leadsTable.id, validIds));
-  await logActivity(null, req.auth!.userId, "leads_bulk_assigned", `Bulk assigned ${validIds.length} leads to agent "${agent.name}"`);
-  res.json({ updated: validIds.length, agentId: parsedAgentId, agentName: agent.name });
+  const parsedAgentId = parseInt(String(agentId), 10);
+  if (isNaN(parsedAgentId) || parsedAgentId <= 0) {
+    res.status(400).json({ error: "agentId must be a positive integer" }); return;
+  }
+
+  const [agent] = await db
+    .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role })
+    .from(usersTable)
+    .where(eq(usersTable.id, parsedAgentId));
+  if (!agent) { res.status(404).json({ error: `Agent with id ${parsedAgentId} not found` }); return; }
+
+  const validIds = Array.from(new Set(leadIds.map(Number).filter(n => !isNaN(n) && n > 0)));
+  if (validIds.length === 0) {
+    res.status(400).json({ error: "No valid lead IDs provided" }); return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.update(leadsTable)
+      .set({ assignedAgentId: parsedAgentId })
+      .where(inArray(leadsTable.id, validIds));
+    await tx.insert(activitiesTable).values({
+      leadId: null,
+      agentId: req.auth!.userId,
+      type: "leads_bulk_assigned",
+      description: `Bulk assigned ${validIds.length} lead${validIds.length !== 1 ? "s" : ""} to agent "${agent.name}"`,
+    });
+  });
+
+  res.json({
+    success: true,
+    updated: validIds.length,
+    agentId: parsedAgentId,
+    agentName: agent.name,
+    message: `${validIds.length} lead${validIds.length !== 1 ? "s" : ""} assigned to ${agent.name} successfully`,
+  });
 });
 
 router.post("/leads/bulk-delete", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const { leadIds } = req.body;
+
   if (!Array.isArray(leadIds) || leadIds.length === 0) {
     res.status(400).json({ error: "leadIds must be a non-empty array" }); return;
   }
-  const validIds = leadIds.map(Number).filter(n => !isNaN(n) && n > 0);
-  await db.delete(leadsTable).where(inArray(leadsTable.id, validIds));
-  await logActivity(null, req.auth!.userId, "leads_bulk_deleted", `Bulk deleted ${validIds.length} leads`);
-  res.json({ deleted: validIds.length });
+
+  const validIds = Array.from(new Set(leadIds.map(Number).filter(n => !isNaN(n) && n > 0)));
+  if (validIds.length === 0) {
+    res.status(400).json({ error: "No valid lead IDs provided" }); return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(leadsTable).where(inArray(leadsTable.id, validIds));
+    await tx.insert(activitiesTable).values({
+      leadId: null,
+      agentId: req.auth!.userId,
+      type: "leads_bulk_deleted",
+      description: `Bulk deleted ${validIds.length} lead${validIds.length !== 1 ? "s" : ""}`,
+    });
+  });
+
+  res.json({
+    success: true,
+    deleted: validIds.length,
+    message: `${validIds.length} lead${validIds.length !== 1 ? "s" : ""} deleted successfully`,
+  });
 });
 
 router.delete("/leads/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {

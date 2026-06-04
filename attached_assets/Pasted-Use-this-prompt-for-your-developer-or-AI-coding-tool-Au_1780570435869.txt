@@ -1,0 +1,170 @@
+Use this prompt for your developer or AI coding tool:
+
+### Auto Dialer Not Working for Agents – Critical Bug Fix
+
+We have a critical issue in the CRM Call Management System.
+
+## Problem
+
+The **Auto Dialer is not working for Agent users**.
+
+Expected behavior:
+
+* Agent logs into CRM.
+* Agent clicks **Start Auto Dialer**.
+* System automatically fetches assigned leads and starts calling them one by one.
+
+Current behavior:
+
+* Auto Dialer does not start.
+* No calls are initiated.
+* Agent cannot use automated calling workflow.
+
+---
+
+## Required Investigation
+
+### Frontend Investigation
+
+* Verify Start Auto Dialer button is triggering the correct API.
+* Check browser console for JavaScript errors.
+* Verify WebSocket connection (if used).
+* Verify agent permissions are correctly loaded.
+* Verify assigned leads are being fetched.
+* Check if dialer status changes correctly from:
+
+  * Idle
+  * Ready
+  * Calling
+  * Completed
+
+### Backend Investigation
+
+* Verify Auto Dialer API endpoint is working.
+* Verify agent authentication and authorization.
+* Verify assigned leads are returned correctly.
+* Verify dialer queue is being created.
+* Verify lead assignment filtering is working.
+* Verify call initiation service is being triggered.
+
+### Telephony Provider Investigation
+
+If using:
+
+* Twilio
+* Exotel
+* Knowlarity
+* MyOperator
+* Airtel IQ
+* Any SIP provider
+
+Check:
+
+* API credentials
+* Webhook configuration
+* Call initiation requests
+* Provider response logs
+* Call status callbacks
+* Active subscription limits
+* Outbound calling permissions
+
+### Database Investigation
+
+Verify:
+
+* Assigned leads exist for the agent.
+* Lead status allows calling.
+* Dialer queue records are being generated.
+* Call logs are being created.
+* Agent records are active.
+
+### Permission Investigation
+
+Verify agent role has permissions for:
+
+* Start Auto Dialer
+* Make Calls
+* View Assigned Leads
+* Create Call Logs
+* Update Call Status
+
+---
+
+## Auto Dialer Workflow Validation
+
+System should:
+
+1. Agent clicks Start Dialer.
+2. System fetches assigned leads.
+3. First lead is loaded.
+4. Call is initiated automatically.
+5. Call status is recorded.
+6. After completion:
+
+   * Connected
+   * No Answer
+   * Busy
+   * Rejected
+7. Next lead is dialed automatically.
+8. Process continues until queue is completed.
+
+---
+
+## Additional Testing
+
+### Agent Testing
+
+* Test with 1 assigned lead.
+* Test with 10 assigned leads.
+* Test with 100 assigned leads.
+
+### Multiple Agent Testing
+
+* Agent A receives only Agent A leads.
+* Agent B receives only Agent B leads.
+* No lead duplication.
+
+### Session Testing
+
+* Auto Dialer continues working after page refresh.
+* No logout occurs during dialing.
+* Active dialing session persists correctly.
+
+### Error Handling
+
+Replace generic errors with specific messages:
+
+* No assigned leads found.
+* Dialer service unavailable.
+* Telephony provider authentication failed.
+* Agent not authorized.
+* Call initiation failed.
+* Queue generation failed.
+
+---
+
+## Logging Requirements
+
+Add detailed logs for:
+
+* Agent ID
+* Lead ID
+* Dialer start event
+* API requests
+* Telephony provider responses
+* Call status updates
+* Queue processing events
+* Error stack traces
+
+---
+
+## Expected Result
+
+* Agent can start Auto Dialer successfully.
+* Assigned leads are dialed automatically.
+* Call logs are recorded correctly.
+* Queue progresses automatically.
+* Call statuses update in real time.
+* No manual intervention is required once dialing starts.
+
+**Important:** Do not implement a temporary workaround. Identify and fix the root cause across frontend, backend, telephony integration, permissions, database, queue processing, and session management. Ensure a production-ready solution with proper logging, validation, and error handling.

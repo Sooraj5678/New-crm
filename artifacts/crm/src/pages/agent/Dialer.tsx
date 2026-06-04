@@ -9,7 +9,7 @@ import {
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
 import { formatDate, STATUS_LABELS, timeAgo } from "@/lib/utils";
 import { toast } from "sonner";
-import { customFetch } from "@/lib/apiClient";
+import { customFetch, ApiError } from "@workspace/api-client-react";
 
 const STATUSES = ["new", "interested", "follow_up", "not_interested", "busy", "callback_later"];
 const OUTCOMES = ["Connected", "Not answered", "Busy", "Voicemail", "Wrong number", "Switched off"];
@@ -48,9 +48,7 @@ interface DialerLead {
 
 async function fetchNextLead(excludeIds: number[]): Promise<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }> {
   const exclude = excludeIds.length > 0 ? `?exclude=${excludeIds.join(",")}` : "";
-  const res = await customFetch(`/api/leads/next-dialer${exclude}`);
-  if (!res.ok) throw new Error("Failed to fetch next lead");
-  return res.json();
+  return customFetch<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }>(`/api/leads/next-dialer${exclude}`);
 }
 
 function useCallTimer(callStart: Date | null) {
@@ -143,8 +141,11 @@ export default function Dialer() {
       setCallStart(start); callStartRef.current = start;
       setSessionStats(s => ({ ...s, totalCalls: s.totalCalls + 1 }));
       logCall.mutate({ id: data.lead.id, data: { startedAt: start.toISOString(), sessionId: session.id } });
-    } catch {
-      toast.error("Failed to start dialer");
+    } catch (err) {
+      const msg = err instanceof ApiError
+        ? (err.data as { error?: string } | null)?.error ?? err.message
+        : err instanceof Error ? err.message : "Failed to start dialer";
+      toast.error(msg);
     } finally {
       setLoadingLead(false);
     }
@@ -256,20 +257,11 @@ export default function Dialer() {
       toast.success("Saved! Loading next lead...");
       const hasMore = await loadNextLead(newExclude);
       if (!hasMore) setView("exhausted");
-
-      if (hasMore && lead) {
-        const nextData = await fetchNextLead(newExclude);
-        if (!nextData.exhausted && nextData.lead) {
-          const start = new Date();
-          setCallStart(start); callStartRef.current = start;
-          setSessionStats(s => ({ ...s, totalCalls: s.totalCalls + 1 }));
-          const phone = normalizePhone(nextData.lead.mobile);
-          window.location.href = `tel:${phone}`;
-          logCall.mutate({ id: nextData.lead.id, data: { startedAt: start.toISOString(), sessionId: dbSessionId ?? undefined } });
-        }
-      }
-    } catch {
-      toast.error("Failed to save call");
+    } catch (err) {
+      const msg = err instanceof ApiError
+        ? (err.data as { error?: string } | null)?.error ?? err.message
+        : err instanceof Error ? err.message : "Failed to save call";
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -613,14 +605,21 @@ function PostCallPopup(p: PostCallProps) {
 function ExhaustedScreen({ stats, sessionEnded, onRefresh, onRequestMore }: {
   stats: SessionStats; sessionEnded: boolean; onRefresh: () => void; onRequestMore: () => void;
 }) {
+  const noLeadsAssigned = !sessionEnded && stats.totalCalls === 0;
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center">
       <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
-        {sessionEnded ? <Award size={44} className="text-primary" /> : <Target size={44} className="text-primary" />}
+        {sessionEnded ? <Award size={44} className="text-primary" /> : noLeadsAssigned ? <UserCog size={44} className="text-primary" /> : <Target size={44} className="text-primary" />}
       </div>
-      <h1 className="text-2xl font-bold text-foreground mb-2">{sessionEnded ? "Session Complete!" : "Queue Exhausted"}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">
+        {sessionEnded ? "Session Complete!" : noLeadsAssigned ? "No Leads Assigned" : "Queue Exhausted"}
+      </h1>
       <p className="text-muted-foreground text-sm mb-8 max-w-xs">
-        {sessionEnded ? "Great work! You've ended your calling session." : "You've reached the end of your lead queue."}
+        {sessionEnded
+          ? "Great work! You've ended your calling session."
+          : noLeadsAssigned
+          ? "You don't have any leads assigned yet. Ask your admin to assign leads to you before starting the dialer."
+          : "You've reached the end of your lead queue."}
       </p>
 
       <div className="grid grid-cols-2 gap-3 w-full max-w-xs mb-8">

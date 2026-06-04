@@ -1,0 +1,127 @@
+### Bulk Delete Bug Fix Prompt
+
+We have a critical issue in the CRM Lead Management system.
+
+## Problem
+
+When multiple leads are selected and **Bulk Delete** is clicked, the system displays **"Bulk Delete Failed"** (or similar error message) and the selected leads are not deleted from the database.
+
+---
+
+## Required Investigation & Fix
+
+### Frontend Investigation
+
+* Verify selected lead IDs are collected correctly.
+* Verify all checked leads are included in the API request.
+* Check that the request payload is properly formatted.
+* Verify API endpoint URL is correct.
+* Ensure authentication token is being sent.
+* Display actual API error messages instead of generic "Bulk Delete Failed".
+* Add loading state during deletion.
+* Prevent duplicate delete requests.
+
+### Backend Investigation
+
+* Verify Bulk Delete API endpoint is functioning correctly.
+* Validate incoming lead IDs array.
+* Verify all selected lead IDs exist.
+* Check authorization and permissions.
+* Ensure delete query executes successfully.
+* Add detailed error logging.
+* Return meaningful error messages.
+
+### Database Investigation
+
+* Verify lead records exist before deletion.
+* Check for foreign key constraints blocking deletion.
+* Verify soft-delete vs hard-delete logic.
+* Ensure bulk delete query removes all selected leads.
+* Use database transactions to prevent partial deletions.
+
+### Expected Request Format
+
+```json
+{
+  "leadIds": [1,2,3,4,5]
+}
+```
+
+### Expected Response
+
+```json
+{
+  "success": true,
+  "message": "5 leads deleted successfully"
+}
+```
+
+---
+
+## Additional Testing Requirements
+
+### Single Record Testing
+
+* Delete 1 lead.
+* Verify lead disappears from UI.
+* Verify lead is removed from database.
+
+### Bulk Testing
+
+* Delete 10 leads.
+* Delete 50 leads.
+* Delete 100+ leads.
+* Verify all selected leads are deleted.
+
+### Pagination Testing
+
+* Select leads from multiple pages.
+* Perform Bulk Delete.
+* Verify all selected leads are deleted.
+* Verify pagination count updates correctly.
+* Verify deleted leads do not reappear after page refresh.
+
+### Session Testing
+
+* Verify deletion works after page refresh.
+* Verify authentication/session issues are not causing delete failures.
+
+---
+
+## Error Handling Requirements
+
+Replace generic errors with specific messages such as:
+
+* No leads selected
+* Lead not found
+* Permission denied
+* Invalid request payload
+* Database delete failed
+* Foreign key constraint violation
+* Session expired
+
+---
+
+## Logging Requirements
+
+Add logs for:
+
+* Selected lead IDs
+* API request payload
+* User performing delete operation
+* Database query execution
+* Database response
+* Full error stack traces
+
+---
+
+## Expected Result
+
+* Bulk Delete successfully removes all selected leads.
+* Success notification displays the number of deleted leads.
+* Lead count updates immediately.
+* Pagination refreshes correctly.
+* No deleted lead appears after refresh.
+* No generic "Bulk Delete Failed" message unless an actual error occurs.
+
+**Important:** Do not implement a temporary workaround. Find and fix the root cause across frontend selection logic, API payload generation, backend validation, authentication, permissions, database queries, and pagination refresh logic. Ensure a production-ready implementation with proper validation, transactions, error handling, and logging.

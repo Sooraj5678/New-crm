@@ -1,0 +1,522 @@
+Use this as a **single master prompt** in Replit AI:
+
+---
+
+# FULL PROJECT CONVERSION FOR VERCEL + RENDER + SUPABASE
+
+I already have a fully working project.
+
+Your job is NOT to rebuild the application.
+
+Your job is to scan the entire existing codebase and convert it so it is production-ready for the following deployment architecture:
+
+## Target Architecture
+
+Frontend → Vercel
+
+Backend/API → Render
+
+Database → Supabase PostgreSQL
+
+Authentication → Supabase Auth (if authentication exists)
+
+Storage → Supabase Storage (if file uploads exist)
+
+---
+
+# IMPORTANT RULES
+
+1. Do not create a new project.
+2. Do not remove existing functionality.
+3. Do not redesign UI.
+4. Do not change business logic.
+5. Preserve all existing features.
+6. First inspect the entire repository before modifying anything.
+7. Generate a migration/conversion plan before making changes.
+8. After every change, explain why it was required.
+9. Keep the project deployable and production-ready.
+
+---
+
+# PHASE 1 — FULL PROJECT AUDIT
+
+Scan the complete repository and generate a report containing:
+
+### Frontend
+
+* Framework used
+* Build system
+* Routing system
+* State management
+* Current API integrations
+* Environment variables
+
+### Backend
+
+* Framework
+* API architecture
+* Middleware
+* Authentication implementation
+* Database connection implementation
+* File upload implementation
+
+### Database
+
+Identify:
+
+* Current database provider
+* Tables
+* Models
+* Relations
+* ORM used
+
+### Deployment
+
+Identify:
+
+* Current deployment setup
+* Hardcoded localhost URLs
+* Build issues
+* Production blockers
+
+Create a report:
+
+```text
+CURRENT ARCHITECTURE
+
+Frontend:
+...
+
+Backend:
+...
+
+Database:
+...
+
+Deployment blockers:
+...
+```
+
+Do not modify code until this audit is complete.
+
+---
+
+# PHASE 2 — PREPARE FRONTEND FOR VERCEL
+
+Analyze frontend and make all required changes.
+
+## Remove Localhost Dependencies
+
+Find and replace:
+
+```javascript
+http://localhost:xxxx
+```
+
+with environment variables.
+
+Examples:
+
+```env
+VITE_API_URL=
+```
+
+or
+
+```env
+NEXT_PUBLIC_API_URL=
+```
+
+depending on framework.
+
+---
+
+## Environment Configuration
+
+Move every environment-specific value into env variables.
+
+Examples:
+
+```env
+VITE_API_URL=
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+or
+
+```env
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+```
+
+---
+
+## Production Build Verification
+
+Ensure frontend builds successfully:
+
+```bash
+npm install
+npm run build
+```
+
+Fix all build errors.
+
+---
+
+## Vercel Configuration
+
+Create only if needed:
+
+```json
+vercel.json
+```
+
+Configure:
+
+* SPA routing
+* Rewrites
+* Environment compatibility
+
+---
+
+# PHASE 3 — PREPARE BACKEND FOR RENDER
+
+Analyze backend and make it compatible with Render.
+
+## Server Configuration
+
+Ensure:
+
+```javascript
+const PORT = process.env.PORT || 5000;
+```
+
+exists.
+
+---
+
+## CORS Configuration
+
+Allow frontend domain through env variables:
+
+```env
+FRONTEND_URL=
+```
+
+Configure secure production CORS.
+
+---
+
+## Health Check Endpoint
+
+Create:
+
+```http
+GET /health
+```
+
+Response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+---
+
+## Production Error Handling
+
+Add:
+
+* Global error handler
+* Unhandled rejection handler
+* Uncaught exception handler
+
+---
+
+## Production Logging
+
+Add proper logging.
+
+---
+
+## Render Compatibility
+
+Ensure backend starts with:
+
+```bash
+npm start
+```
+
+or provide corrected start command.
+
+Generate:
+
+```yaml
+render.yaml
+```
+
+if needed.
+
+---
+
+# PHASE 4 — DATABASE MIGRATION TO SUPABASE
+
+Inspect current database.
+
+If already PostgreSQL:
+
+Optimize for Supabase.
+
+If another database:
+
+Generate migration strategy.
+
+Create:
+
+```sql
+complete_supabase_migration.sql
+```
+
+containing:
+
+* Tables
+* Indexes
+* Constraints
+* Relationships
+* Triggers
+
+---
+
+## Create Supabase Client
+
+Generate:
+
+```javascript
+lib/supabase.js
+```
+
+or equivalent.
+
+Example:
+
+```javascript
+import { createClient } from "@supabase/supabase-js";
+
+export const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+```
+
+---
+
+# PHASE 5 — AUTHENTICATION MIGRATION
+
+If authentication exists:
+
+Analyze current auth system.
+
+Migrate to Supabase Auth.
+
+Support:
+
+* Email login
+* Email signup
+* Password reset
+* Session persistence
+* Logout
+* Protected routes
+
+Do not break existing functionality.
+
+---
+
+# PHASE 6 — FILE STORAGE MIGRATION
+
+If uploads/files/images exist:
+
+Replace current storage implementation with Supabase Storage.
+
+Generate:
+
+```javascript
+uploadFile()
+deleteFile()
+getPublicUrl()
+```
+
+utilities.
+
+Create required bucket configuration.
+
+---
+
+# PHASE 7 — SECURITY HARDENING
+
+Implement production security:
+
+### Backend
+
+* Helmet
+* Rate limiting
+* Input validation
+* Secure headers
+* CORS restrictions
+
+### Frontend
+
+* Environment safety
+* Remove exposed secrets
+
+### Database
+
+* Row Level Security recommendations
+* Secure policies
+
+---
+
+# PHASE 8 — ENVIRONMENT VARIABLES
+
+Generate final environment variable documentation.
+
+## Frontend
+
+```env
+VITE_API_URL=
+
+VITE_SUPABASE_URL=
+
+VITE_SUPABASE_ANON_KEY=
+```
+
+or Next.js equivalent.
+
+---
+
+## Backend
+
+```env
+NODE_ENV=production
+
+PORT=5000
+
+SUPABASE_URL=
+
+SUPABASE_SERVICE_ROLE_KEY=
+
+JWT_SECRET=
+
+FRONTEND_URL=
+```
+
+Include all required variables discovered during audit.
+
+---
+
+# PHASE 9 — DEPLOYMENT READINESS CHECK
+
+Verify:
+
+Frontend:
+
+```bash
+npm install
+npm run build
+```
+
+passes.
+
+Backend:
+
+```bash
+npm install
+npm start
+```
+
+passes.
+
+No localhost references remain.
+
+All APIs use production URLs.
+
+All environment variables documented.
+
+---
+
+# PHASE 10 — GENERATE COMPLETE DEPLOYMENT GUIDE
+
+After conversion is complete, generate a detailed beginner-friendly deployment guide.
+
+Include:
+
+## STEP 1 — Create Supabase Project
+
+* Create account
+* Create project
+* Obtain keys
+* Run migration SQL
+* Configure Auth
+* Configure Storage
+* Configure RLS
+
+---
+
+## STEP 2 — Deploy Backend on Render
+
+Include:
+
+* Creating Render account
+* Connecting GitHub
+* Creating Web Service
+* Build command
+* Start command
+* Environment variables
+* Health check setup
+
+---
+
+## STEP 3 — Deploy Frontend on Vercel
+
+Include:
+
+* Import repository
+* Build settings
+* Environment variables
+* Domain configuration
+
+---
+
+## STEP 4 — Connect Everything
+
+Show:
+
+Frontend → Backend connection
+
+Backend → Supabase connection
+
+Frontend → Supabase connection
+
+---
+
+# FINAL DELIVERABLES
+
+Provide:
+
+1. Complete project audit report
+2. Conversion plan
+3. All modified files
+4. All created files
+5. Supabase migration SQL
+6. Render configuration
+7. Vercel configuration
+8. Environment variable list
+9. Security recommendations
+10. Deployment checklist
+11. Step-by-step deployment guide
+
+Do not skip any phase. Start with repository audit, then perform the conversion, then generate deployment documentation.

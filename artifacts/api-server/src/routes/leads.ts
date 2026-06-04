@@ -327,6 +327,35 @@ router.patch("/leads/:id", requireAuth, async (req, res): Promise<void> => {
   res.json(formatLead(lead, lead.assignedAgentId ? agentMap[lead.assignedAgentId] : null));
 });
 
+router.post("/leads/bulk-assign", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { leadIds, agentId } = req.body;
+  if (!Array.isArray(leadIds) || leadIds.length === 0) {
+    res.status(400).json({ error: "leadIds must be a non-empty array" }); return;
+  }
+  if (!agentId) {
+    res.status(400).json({ error: "agentId is required" }); return;
+  }
+  const parsedAgentId = parseInt(agentId, 10);
+  const [agent] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, parsedAgentId));
+  if (!agent) { res.status(404).json({ error: "Agent not found" }); return; }
+
+  const validIds = leadIds.map(Number).filter(n => !isNaN(n) && n > 0);
+  await db.update(leadsTable).set({ assignedAgentId: parsedAgentId }).where(inArray(leadsTable.id, validIds));
+  await logActivity(null, req.auth!.userId, "leads_bulk_assigned", `Bulk assigned ${validIds.length} leads to agent "${agent.name}"`);
+  res.json({ updated: validIds.length, agentId: parsedAgentId, agentName: agent.name });
+});
+
+router.post("/leads/bulk-delete", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const { leadIds } = req.body;
+  if (!Array.isArray(leadIds) || leadIds.length === 0) {
+    res.status(400).json({ error: "leadIds must be a non-empty array" }); return;
+  }
+  const validIds = leadIds.map(Number).filter(n => !isNaN(n) && n > 0);
+  await db.delete(leadsTable).where(inArray(leadsTable.id, validIds));
+  await logActivity(null, req.auth!.userId, "leads_bulk_deleted", `Bulk deleted ${validIds.length} leads`);
+  res.json({ deleted: validIds.length });
+});
+
 router.delete("/leads/:id", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const [lead] = await db.delete(leadsTable).where(eq(leadsTable.id, id)).returning();

@@ -13,6 +13,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
+  initialized: boolean;
   login: (user: AuthUser, token: string) => void;
   logout: () => void;
   isAdmin: boolean;
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("crm_token");
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("crm_user");
       }
     }
+    setInitialized(true);
   }, []);
 
   const login = (user: AuthUser, token: string) => {
@@ -55,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, token, login, logout,
+      user, token, initialized, login, logout,
       isAdmin: user?.role === "admin",
       isAgent: user?.role === "agent",
     }}>

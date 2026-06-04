@@ -23,8 +23,12 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ children, role }: { children: React.ReactNode; role?: "admin" | "agent" }) {
-  const { user, token } = useAuth();
+  const { user, token, initialized } = useAuth();
   const [location] = useLocation();
+
+  if (!initialized) {
+    return <div className="flex items-center justify-center min-h-screen"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  }
 
   if (!token || !user) {
     return <Redirect to="/login" />;
@@ -38,16 +42,18 @@ function ProtectedRoute({ children, role }: { children: React.ReactNode; role?: 
 }
 
 function AppRouter() {
-  const { user, token } = useAuth();
+  const { user, token, initialized } = useAuth();
 
   return (
     <Switch>
       <Route path="/login" component={Login} />
 
       <Route path="/">
-        {token && user
-          ? <Redirect to={user.role === "admin" ? "/admin/dashboard" : "/agent/dashboard"} />
-          : <Redirect to="/login" />}
+        {!initialized
+          ? <div className="flex items-center justify-center min-h-screen"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+          : token && user
+            ? <Redirect to={user.role === "admin" ? "/admin/dashboard" : "/agent/dashboard"} />
+            : <Redirect to="/login" />}
       </Route>
 
       {/* Admin routes */}

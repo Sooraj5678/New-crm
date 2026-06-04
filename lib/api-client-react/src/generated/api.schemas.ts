@@ -458,6 +458,8 @@ source?: string;
 search?: string;
 followUpFrom?: string;
 followUpTo?: string;
+partnerName?: string;
+accountManagerName?: string;
 page?: number;
 limit?: number;
 };

@@ -18,7 +18,7 @@ export default function AgentLeads() {
   if (filterPartnerName) params.partnerName = filterPartnerName;
   if (filterAccountManagerName) params.accountManagerName = filterAccountManagerName;
 
-  const { data, isLoading } = useListLeads({ params });
+  const { data, isLoading } = useListLeads(params as import("@workspace/api-client-react").ListLeadsParams);
 
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);

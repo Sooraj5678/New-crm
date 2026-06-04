@@ -124,25 +124,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-8 p-4 bg-muted rounded-lg">
-            <p className="text-xs text-muted-foreground font-medium mb-2">Demo credentials — click to fill:</p>
-            <div className="space-y-1.5">
-              {[
-                { label: "Admin", email: "admin@demo.com", password: "demo1234" },
-                { label: "Agent", email: "agent@demo.com", password: "demo1234" },
-              ].map(c => (
-                <button
-                  key={c.label}
-                  type="button"
-                  onClick={() => { setEmail(c.email); setPassword(c.password); }}
-                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-md hover:bg-background transition-colors text-xs text-muted-foreground group"
-                >
-                  <span className="font-medium group-hover:text-foreground transition-colors">{c.label}</span>
-                  <span className="font-mono group-hover:text-foreground transition-colors">{c.email} / {c.password}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

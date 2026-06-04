@@ -18,7 +18,7 @@ async function apiPost(path: string, body: unknown) {
 const TEMPLATE_COLUMNS = ["Lead Name", "Company Name", "Email", "Phone Number", "Country", "State", "City", "Lead Source", "Partner Name", "Account Manager Name", "Notes"];
 
 const CRM_FIELDS = [
-  { key: "name", label: "Lead Name", required: true },
+  { key: "name", label: "Lead Name", required: false },
   { key: "company", label: "Company Name", required: false },
   { key: "email", label: "Email", required: false },
   { key: "mobile", label: "Phone Number", required: false },

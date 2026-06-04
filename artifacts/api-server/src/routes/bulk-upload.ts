@@ -64,8 +64,6 @@ router.post("/bulk-upload/validate", requireAuth, requireAdmin, async (req, res)
     const partnerName = (row.partnerName ?? "").trim();
     const accountManagerName = (row.accountManagerName ?? "").trim();
 
-    if (!name) errors.push("Lead Name is required");
-    if (!mobile && !email) errors.push("At least one of Email or Phone Number is required");
 
     let isDuplicate = false;
     if (errors.length === 0) {
@@ -115,15 +113,13 @@ router.post("/bulk-upload/import", requireAuth, requireAdmin, async (req, res): 
     const partnerName = (row.partnerName ?? "").trim();
     const accountManagerName = (row.accountManagerName ?? "").trim();
 
-    if (!name) { failed++; failedRows.push({ row: i + 2, reason: "Lead Name is required" }); continue; }
-    if (!mobile && !email) { failed++; failedRows.push({ row: i + 2, reason: "Email or Phone required" }); continue; }
 
     const isDuplicate = await checkDuplicate(email || null, mobile || null);
     if (isDuplicate) { failed++; failedRows.push({ row: i + 2, reason: "Duplicate lead (email/phone already exists)" }); continue; }
 
     try {
       await db.insert(leadsTable).values({
-        name,
+        name: name || "Unknown",
         mobile: mobile || "N/A",
         email: email || null,
         company: (row.company ?? "").trim() || null,

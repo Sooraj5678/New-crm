@@ -66,8 +66,6 @@ router.post("/bulk-upload/validate", requireAuth, requireAdmin, async (req, res)
 
     if (!name) errors.push("Lead Name is required");
     if (!mobile && !email) errors.push("At least one of Email or Phone Number is required");
-    if (!partnerName) errors.push("Partner Name is required");
-    if (!accountManagerName) errors.push("Account Manager Name is required");
 
     let isDuplicate = false;
     if (errors.length === 0) {
@@ -119,8 +117,6 @@ router.post("/bulk-upload/import", requireAuth, requireAdmin, async (req, res): 
 
     if (!name) { failed++; failedRows.push({ row: i + 2, reason: "Lead Name is required" }); continue; }
     if (!mobile && !email) { failed++; failedRows.push({ row: i + 2, reason: "Email or Phone required" }); continue; }
-    if (!partnerName) { failed++; failedRows.push({ row: i + 2, reason: "Partner Name is required" }); continue; }
-    if (!accountManagerName) { failed++; failedRows.push({ row: i + 2, reason: "Account Manager Name is required" }); continue; }
 
     const isDuplicate = await checkDuplicate(email || null, mobile || null);
     if (isDuplicate) { failed++; failedRows.push({ row: i + 2, reason: "Duplicate lead (email/phone already exists)" }); continue; }

@@ -1,20 +1,18 @@
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload, Download, CheckCircle, XCircle, AlertCircle, FileSpreadsheet, ChevronRight, RefreshCw, X, History, Eye } from "lucide-react";
+import { Upload, Download, CheckCircle, AlertCircle, FileSpreadsheet, ChevronRight, RefreshCw, X, History } from "lucide-react";
 import { toast } from "sonner";
-import { getAuthHeaders } from "@/lib/apiClient";
+import { customFetch } from "@workspace/api-client-react";
 
-const API = "/api";
-
-function apiGet(path: string) {
-  return fetch(`${API}${path}`, { headers: { ...getAuthHeaders() } }).then(r => r.json());
+async function apiGet(path: string) {
+  return customFetch(`/api${path}`);
 }
-function apiPost(path: string, body: unknown) {
-  return fetch(`${API}${path}`, {
+
+async function apiPost(path: string, body: unknown) {
+  return customFetch(`/api${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(body),
-  }).then(r => r.json());
+  });
 }
 
 const TEMPLATE_COLUMNS = ["Lead Name", "Company Name", "Email", "Phone Number", "Country", "State", "City", "Lead Source", "Partner Name", "Account Manager Name", "Notes"];
@@ -28,8 +26,8 @@ const CRM_FIELDS = [
   { key: "state", label: "State", required: false },
   { key: "city", label: "City", required: false },
   { key: "source", label: "Lead Source", required: false },
-  { key: "partnerName", label: "Partner Name", required: true },
-  { key: "accountManagerName", label: "Account Manager Name", required: true },
+  { key: "partnerName", label: "Partner Name", required: false },
+  { key: "accountManagerName", label: "Account Manager Name", required: false },
   { key: "notes", label: "Notes", required: false },
 ];
 

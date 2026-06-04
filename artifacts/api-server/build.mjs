@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, cp, mkdir } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -120,17 +120,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   });
 }
 
-async function copyMigrations() {
-  const workspaceRoot = path.resolve(artifactDir, "../..");
-  const migrationsSource = path.resolve(workspaceRoot, "lib/db/drizzle");
-  const migrationsDest = path.resolve(artifactDir, "dist/drizzle");
-  await mkdir(migrationsDest, { recursive: true });
-  await cp(migrationsSource, migrationsDest, { recursive: true });
-}
-
-buildAll()
-  .then(() => copyMigrations())
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+buildAll().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

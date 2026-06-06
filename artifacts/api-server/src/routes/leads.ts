@@ -183,6 +183,18 @@ router.post("/leads/import", requireAuth, requireAdmin, async (req, res): Promis
   res.json({ imported, failed, errors });
 });
 
+router.get("/leads/dialer-count", requireAuth, async (req, res): Promise<void> => {
+  const agentId = req.auth!.userId;
+  const [countResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(leadsTable)
+    .where(and(
+      eq(leadsTable.assignedAgentId, agentId),
+      sql`${leadsTable.status} NOT IN ('closed_won', 'closed_lost', 'converted')`,
+    ));
+  res.json({ count: Number(countResult?.count ?? 0) });
+});
+
 router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> => {
   const agentId = req.auth!.userId;
   const excludeParam = (req.query as Record<string, string>).exclude ?? "";
@@ -201,7 +213,12 @@ router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> =>
 
   const [lead] = await db.select().from(leadsTable)
     .where(and(...nextConditions))
-    .orderBy(leadsTable.followUpDate, leadsTable.updatedAt)
+    .orderBy(
+      sql`${leadsTable.lastCalledAt} IS NOT NULL`,
+      sql`CASE ${leadsTable.priority} WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END`,
+      sql`${leadsTable.followUpDate} ASC NULLS LAST`,
+      desc(leadsTable.updatedAt),
+    )
     .limit(1);
 
   const [countResult] = await db

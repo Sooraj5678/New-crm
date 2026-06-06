@@ -51,6 +51,11 @@ async function fetchNextLead(excludeIds: number[]): Promise<{ exhausted: boolean
   return customFetch<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }>(`/api/leads/next-dialer${exclude}`);
 }
 
+async function fetchDialerCount(): Promise<number> {
+  const data = await customFetch<{ count: number }>("/api/leads/dialer-count");
+  return data.count;
+}
+
 function useCallTimer(callStart: Date | null) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -72,6 +77,7 @@ export default function Dialer() {
   const [loadingLead, setLoadingLead] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [calledLeadIds, setCalledLeadIds] = useState<number[]>([]);
+  const [availableCount, setAvailableCount] = useState<number | null>(null);
   const [sessionStats, setSessionStats] = useState<SessionStats>({
     totalCalls: 0, connectedCalls: 0, followUpsScheduled: 0, dealsWon: 0, revenueGenerated: 0,
   });
@@ -124,6 +130,33 @@ export default function Dialer() {
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
+
+  useEffect(() => {
+    if (view === "calling") return;
+
+    let active = true;
+    const poll = async () => {
+      try {
+        const count = await fetchDialerCount();
+        if (!active) return;
+        setAvailableCount(count);
+        if (view === "exhausted" && count > 0) {
+          toast.success(`${count} new lead${count !== 1 ? "s" : ""} assigned — ready to dial!`);
+          setCalledLeadIds([]);
+          setSessionStats({ totalCalls: 0, connectedCalls: 0, followUpsScheduled: 0, dealsWon: 0, revenueGenerated: 0 });
+          setSessionEnded(false);
+          setDbSessionId(null);
+          setView("start");
+        }
+      } catch {
+        // Silently ignore polling errors
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 10_000);
+    return () => { active = false; clearInterval(interval); };
+  }, [view]);
 
   const handleStartDialer = async () => {
     setLoadingLead(true);
@@ -268,22 +301,43 @@ export default function Dialer() {
   };
 
   if (view === "start") {
+    const hasLeads = availableCount !== null && availableCount > 0;
+    const countLoading = availableCount === null;
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center">
         <div className="w-24 h-24 rounded-3xl bg-green-600/10 flex items-center justify-center mb-6">
           <PhoneCall size={44} className="text-green-600" />
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">Auto Dialer</h1>
-        <p className="text-muted-foreground text-sm max-w-xs mb-8">
-          Start your calling session. The system will automatically open the phone dialer for each lead and track your calls.
-        </p>
+
+        {/* Live lead count badge */}
+        <div className="mb-6">
+          {countLoading ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted text-muted-foreground text-sm">
+              <Loader2 size={13} className="animate-spin" />
+              Checking leads...
+            </div>
+          ) : hasLeads ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-600/10 text-green-700 dark:text-green-400 text-sm font-semibold">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              {availableCount} lead{availableCount !== 1 ? "s" : ""} ready to call
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm font-medium border border-amber-200 dark:border-amber-800">
+              No leads assigned yet — ask your admin
+            </div>
+          )}
+        </div>
+
         <div className="w-full max-w-sm space-y-3">
-          <button onClick={handleStartDialer} disabled={loadingLead}
-            className="flex items-center justify-center gap-3 w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white py-5 rounded-2xl font-bold text-lg transition-colors touch-manipulation disabled:opacity-60">
+          <button onClick={handleStartDialer} disabled={loadingLead || (!hasLeads && !countLoading)}
+            className="flex items-center justify-center gap-3 w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white py-5 rounded-2xl font-bold text-lg transition-colors touch-manipulation disabled:opacity-40">
             {loadingLead ? <Loader2 size={22} className="animate-spin" /> : <Play size={22} fill="white" />}
             {loadingLead ? "Loading..." : "Start Auto Dialer"}
           </button>
-          <p className="text-xs text-muted-foreground">Tapping Start will immediately open your phone dialer for the first lead</p>
+          {hasLeads && (
+            <p className="text-xs text-muted-foreground">Tapping Start will immediately open your phone dialer for the first lead</p>
+          )}
         </div>
       </div>
     );

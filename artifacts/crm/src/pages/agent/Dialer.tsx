@@ -46,9 +46,16 @@ interface DialerLead {
   notes?: Array<{ id: number; content: string; callOutcome?: string | null; agentName: string; createdAt: string }>;
 }
 
-async function fetchNextLead(excludeIds: number[]): Promise<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }> {
-  const exclude = excludeIds.length > 0 ? `?exclude=${excludeIds.join(",")}` : "";
-  return customFetch<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }>(`/api/leads/next-dialer${exclude}`);
+async function fetchNextLead(
+  excludeIds: number[],
+  sessionId?: number | null,
+): Promise<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }> {
+  const params = new URLSearchParams();
+  const unique = [...new Set(excludeIds.filter(n => n > 0))];
+  if (unique.length > 0) params.set("exclude", unique.join(","));
+  if (sessionId) params.set("sessionId", String(sessionId));
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return customFetch<{ exhausted: boolean; remainingCount?: number; lead?: DialerLead }>(`/api/leads/next-dialer${qs}`);
 }
 
 async function fetchDialerCount(): Promise<number> {
@@ -101,10 +108,10 @@ export default function Dialer() {
   const endSessionMutation = useEndDialerSession();
   const timerDisplay = useCallTimer(callStart);
 
-  const loadNextLead = useCallback(async (excludeIds: number[]): Promise<boolean> => {
+  const loadNextLead = useCallback(async (excludeIds: number[], sessionId?: number | null): Promise<boolean> => {
     setLoadingLead(true);
     try {
-      const data = await fetchNextLead(excludeIds);
+      const data = await fetchNextLead(excludeIds, sessionId);
       if (data.exhausted || !data.lead) {
         setLead(null); setRemainingCount(0);
         return false;
@@ -163,7 +170,7 @@ export default function Dialer() {
     try {
       const session = await createSessionMutation.mutateAsync();
       setDbSessionId(session.id);
-      const data = await fetchNextLead([]);
+      const data = await fetchNextLead([], session.id);
       if (data.exhausted || !data.lead) { setView("exhausted"); return; }
       setLead(data.lead);
       setRemainingCount(data.remainingCount ?? 0);
@@ -202,16 +209,19 @@ export default function Dialer() {
 
   const handleSkip = async () => {
     if (!lead) return;
-    const newExclude = [...calledLeadIds, lead.id];
+    const newExclude = [...new Set([...calledLeadIds, lead.id])];
     setCalledLeadIds(newExclude);
     resetCallForm(); setPostCallOpen(false);
     toast.info("Lead skipped");
-    const hasMore = await loadNextLead(newExclude);
+    const hasMore = await loadNextLead(newExclude, dbSessionId);
     if (!hasMore) setView("exhausted");
   };
 
   const handleNextLead = async () => {
-    const hasMore = await loadNextLead(calledLeadIds);
+    if (!lead) return;
+    const newExclude = [...new Set([...calledLeadIds, lead.id])];
+    setCalledLeadIds(newExclude);
+    const hasMore = await loadNextLead(newExclude, dbSessionId);
     if (!hasMore) setView("exhausted");
   };
 
@@ -277,7 +287,7 @@ export default function Dialer() {
       };
       setSessionStats(nextStats);
 
-      const newExclude = [...calledLeadIds, lead.id];
+      const newExclude = [...new Set([...calledLeadIds, lead.id])];
       setCalledLeadIds(newExclude);
       resetCallForm(); setPostCallOpen(false);
 
@@ -288,7 +298,7 @@ export default function Dialer() {
       }
 
       toast.success("Saved! Loading next lead...");
-      const hasMore = await loadNextLead(newExclude);
+      const hasMore = await loadNextLead(newExclude, dbSessionId);
       if (!hasMore) setView("exhausted");
     } catch (err) {
       const msg = err instanceof ApiError

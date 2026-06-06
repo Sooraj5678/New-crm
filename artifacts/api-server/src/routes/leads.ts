@@ -197,19 +197,36 @@ router.get("/leads/dialer-count", requireAuth, async (req, res): Promise<void> =
 
 router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> => {
   const agentId = req.auth!.userId;
-  const excludeParam = (req.query as Record<string, string>).exclude ?? "";
-  const excludeIds = excludeParam
-    ? excludeParam.split(",").map(Number).filter(n => !isNaN(n) && n > 0)
+  const q = req.query as Record<string, string>;
+
+  const excludeParam = q.exclude ?? "";
+  const frontendExcludeIds = excludeParam
+    ? [...new Set(excludeParam.split(",").map(Number).filter(n => !isNaN(n) && n > 0))]
     : [];
+
+  const sessionIdParam = parseInt(q.sessionId ?? "", 10);
+  const sessionId = !isNaN(sessionIdParam) && sessionIdParam > 0 ? sessionIdParam : null;
 
   const baseConditions = [
     eq(leadsTable.assignedAgentId, agentId),
     sql`${leadsTable.status} NOT IN ('closed_won', 'closed_lost', 'converted')`,
   ];
 
-  const nextConditions = excludeIds.length > 0
-    ? [...baseConditions, sql`${leadsTable.id} NOT IN (${sql.join(excludeIds.map(id => sql`${id}`), sql`, `)})`]
-    : baseConditions;
+  if (frontendExcludeIds.length > 0) {
+    baseConditions.push(
+      sql`${leadsTable.id} NOT IN (${sql.join(frontendExcludeIds.map(id => sql`${id}`), sql`, `)})`
+    );
+  }
+
+  if (sessionId) {
+    baseConditions.push(
+      sql`${leadsTable.id} NOT IN (
+        SELECT DISTINCT lead_id FROM lead_calls WHERE session_id = ${sessionId}
+      )`
+    );
+  }
+
+  const nextConditions = baseConditions;
 
   const [lead] = await db.select().from(leadsTable)
     .where(and(...nextConditions))

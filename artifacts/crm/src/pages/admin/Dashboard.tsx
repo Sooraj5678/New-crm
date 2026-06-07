@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { TrendingUp, Users, Phone, Target, DollarSign, CheckCircle2, Star, AlertCircle } from "lucide-react";
 import { formatCurrency, timeAgo, STATUS_LABELS } from "@/lib/utils";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ActivityEntry } from "@/components/ActivityEntry";
 
 const STATUS_COLORS: Record<string, string> = {
   new: "#3b82f6", interested: "#22c55e", follow_up: "#f59e0b",
@@ -143,14 +144,10 @@ export default function AdminDashboard() {
         <div className="bg-card border border-card-border rounded-xl p-5">
           <h2 className="font-semibold text-foreground mb-4">Recent Activity</h2>
           {activities && activities.length > 0 ? (
-            <div className="space-y-3">
-              {activities.slice(0, 6).map(act => (
-                <div key={act.id} className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-foreground leading-relaxed">{act.description}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{act.agentName} · {timeAgo(act.createdAt)}</div>
-                  </div>
+            <div className="space-y-4 divide-y divide-border">
+              {activities.slice(0, 8).map(act => (
+                <div key={act.id} className="pt-3 first:pt-0">
+                  <ActivityEntry act={act as Parameters<typeof ActivityEntry>[0]["act"]} showAgent compact={false} />
                 </div>
               ))}
             </div>

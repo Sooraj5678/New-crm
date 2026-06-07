@@ -1,6 +1,7 @@
 import { useGetAgentStats, useListActivities, useListLeads } from "@workspace/api-client-react";
 import { LayoutDashboard, Phone, Target, DollarSign, CheckCircle2, Clock } from "lucide-react";
 import { formatCurrency, formatDate, timeAgo } from "@/lib/utils";
+import { ActivityEntry } from "@/components/ActivityEntry";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth";
 import { Link } from "wouter";
@@ -93,14 +94,10 @@ export default function AgentDashboard() {
         <div className="bg-card border border-card-border rounded-xl p-5">
           <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2"><LayoutDashboard size={16} className="text-primary" /> Recent Activity</h2>
           {activities && activities.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4 divide-y divide-border">
               {activities.map(act => (
-                <div key={act.id} className="flex items-start gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
-                  <div>
-                    <div className="text-xs text-foreground leading-relaxed">{act.description}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{timeAgo(act.createdAt)}</div>
-                  </div>
+                <div key={act.id} className="pt-3 first:pt-0">
+                  <ActivityEntry act={act as Parameters<typeof ActivityEntry>[0]["act"]} showAgent={false} compact={false} />
                 </div>
               ))}
             </div>

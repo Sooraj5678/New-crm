@@ -207,8 +207,8 @@ router.get("/activities", requireAuth, async (req, res): Promise<void> => {
 
   res.json(acts.map(a => ({
     id: a.id, leadId: a.leadId ?? null, leadName: a.leadId ? leadMap[a.leadId] ?? null : null,
-    type: a.type, description: a.description, agentId: a.agentId,
-    agentName: agentMap[a.agentId] ?? "Unknown", createdAt: a.createdAt.toISOString(),
+    type: a.type, description: a.description, phone: a.phone ?? null, changes: a.changes ?? null,
+    agentId: a.agentId, agentName: agentMap[a.agentId] ?? "Unknown", createdAt: a.createdAt.toISOString(),
   })));
 });
 

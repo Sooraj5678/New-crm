@@ -7,6 +7,7 @@ import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
 import { formatDate, formatDateTime, timeAgo, STATUS_LABELS, PRIORITY_LABELS, ALL_STATUSES, ALL_PRIORITIES } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { ActivityEntry } from "@/components/ActivityEntry";
 
 export default function LeadDetail({ basePath }: { basePath: "admin" | "agent" }) {
   const [, params] = useRoute(`/${basePath}/leads/:id`);
@@ -368,14 +369,14 @@ export default function LeadDetail({ basePath }: { basePath: "admin" | "agent" }
           {lead.activities && lead.activities.length > 0 && (
             <div className="bg-card border border-card-border rounded-xl p-5">
               <h2 className="font-semibold text-foreground mb-3">Activity Log</h2>
-              <div className="space-y-2.5">
-                {lead.activities.slice(0, 8).map(act => (
-                  <div key={act.id} className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-1.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <div className="text-xs text-foreground leading-relaxed">{act.description}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{act.agentName} · {timeAgo(act.createdAt)}</div>
-                    </div>
+              <div className="space-y-4 divide-y divide-border">
+                {lead.activities.map(act => (
+                  <div key={act.id} className="pt-3 first:pt-0">
+                    <ActivityEntry
+                      act={act as Parameters<typeof ActivityEntry>[0]["act"]}
+                      showAgent
+                      compact={false}
+                    />
                   </div>
                 ))}
               </div>

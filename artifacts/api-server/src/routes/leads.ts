@@ -36,8 +36,43 @@ function formatLead(
   };
 }
 
-async function logActivity(leadId: number | null, agentId: number, type: string, description: string) {
-  await db.insert(activitiesTable).values({ leadId, agentId, type, description });
+type ChangeValue = string | number | boolean | null | undefined;
+interface FieldChange { from: ChangeValue; to: ChangeValue; }
+
+async function logActivity(
+  leadId: number | null,
+  agentId: number,
+  type: string,
+  description: string,
+  phone?: string | null,
+  changes?: Record<string, FieldChange> | null,
+) {
+  await db.insert(activitiesTable).values({
+    leadId,
+    agentId,
+    type,
+    description,
+    phone: phone ?? null,
+    changes: changes ?? null,
+  });
+}
+
+function buildDiff(
+  existing: Record<string, ChangeValue>,
+  updates: Record<string, ChangeValue>,
+  fieldLabels: Record<string, string>,
+): Record<string, FieldChange> | null {
+  const diff: Record<string, FieldChange> = {};
+  for (const [key, label] of Object.entries(fieldLabels)) {
+    if (key in updates) {
+      const prev = existing[key] ?? null;
+      const next = updates[key] ?? null;
+      if (prev !== next) {
+        diff[label] = { from: prev, to: next };
+      }
+    }
+  }
+  return Object.keys(diff).length > 0 ? diff : null;
 }
 
 async function buildAgentMap(leads: (typeof leadsTable.$inferSelect)[]) {
@@ -134,7 +169,15 @@ router.post("/leads", requireAuth, async (req, res): Promise<void> => {
     accountManagerName: accountManagerName || null,
   }).returning();
 
-  await logActivity(lead.id, req.auth!.userId, "lead_created", `Lead "${name}" was created`);
+  await logActivity(lead.id, req.auth!.userId, "lead_created", `Added contact "${name}"`, mobile, {
+    "Name": { from: null, to: name },
+    ...(email ? { "Email": { from: null, to: email } } : {}),
+    ...(company ? { "Company": { from: null, to: company } } : {}),
+    ...(city ? { "City": { from: null, to: city } } : {}),
+    ...(source ? { "Source": { from: null, to: source } } : {}),
+    "Status": { from: null, to: status || "new" },
+    "Priority": { from: null, to: priority || "medium" },
+  });
 
   const agentMap = await buildAgentMap([lead]);
   res.status(201).json(formatLead(lead, lead.assignedAgentId ? agentMap[lead.assignedAgentId] : null));
@@ -316,7 +359,8 @@ router.get("/leads/:id", requireAuth, async (req, res): Promise<void> => {
     })),
     activities: activities.map(a => ({
       id: a.id, leadId: a.leadId ?? null, leadName: lead.name, type: a.type,
-      description: a.description, agentId: a.agentId, agentName: userMap[a.agentId] ?? "Unknown",
+      description: a.description, phone: a.phone ?? null, changes: a.changes ?? null,
+      agentId: a.agentId, agentName: userMap[a.agentId] ?? "Unknown",
       createdAt: a.createdAt.toISOString(),
     })),
   });
@@ -350,11 +394,52 @@ router.patch("/leads/:id", requireAuth, async (req, res): Promise<void> => {
 
   const [lead] = await db.update(leadsTable).set(updates).where(eq(leadsTable.id, id)).returning();
 
-  if (status && status !== existing.status) {
-    await logActivity(id, req.auth!.userId, "status_changed", `Status changed from "${existing.status}" to "${status}"`);
-  }
-  if (updates.assignedAgentId !== undefined && updates.assignedAgentId !== existing.assignedAgentId) {
-    await logActivity(id, req.auth!.userId, "lead_reassigned", `Lead reassigned to agent ID ${updates.assignedAgentId}`);
+  const rawUpdates: Record<string, ChangeValue> = {};
+  if (updates.name !== undefined) rawUpdates.name = updates.name;
+  if (updates.mobile !== undefined) rawUpdates.mobile = updates.mobile;
+  if (updates.alternateMobile !== undefined) rawUpdates.alternateMobile = updates.alternateMobile ?? null;
+  if (updates.email !== undefined) rawUpdates.email = updates.email ?? null;
+  if (updates.company !== undefined) rawUpdates.company = updates.company ?? null;
+  if (updates.city !== undefined) rawUpdates.city = updates.city ?? null;
+  if (updates.state !== undefined) rawUpdates.state = updates.state ?? null;
+  if (updates.country !== undefined) rawUpdates.country = updates.country ?? null;
+  if (updates.source !== undefined) rawUpdates.source = updates.source ?? null;
+  if (updates.status !== undefined) rawUpdates.status = updates.status;
+  if (updates.priority !== undefined) rawUpdates.priority = updates.priority;
+  if ("followUpDate" in updates) rawUpdates.followUpDate = updates.followUpDate ? updates.followUpDate.toISOString() : null;
+  if (updates.assignedAgentId !== undefined) rawUpdates.assignedAgentId = updates.assignedAgentId ?? null;
+  if (updates.partnerName !== undefined) rawUpdates.partnerName = updates.partnerName ?? null;
+  if (updates.accountManagerName !== undefined) rawUpdates.accountManagerName = updates.accountManagerName ?? null;
+
+  const rawExisting: Record<string, ChangeValue> = {
+    name: existing.name,
+    mobile: existing.mobile,
+    alternateMobile: existing.alternateMobile ?? null,
+    email: existing.email ?? null,
+    company: existing.company ?? null,
+    city: existing.city ?? null,
+    state: existing.state ?? null,
+    country: existing.country ?? null,
+    source: existing.source ?? null,
+    status: existing.status,
+    priority: existing.priority,
+    followUpDate: existing.followUpDate ? existing.followUpDate.toISOString() : null,
+    assignedAgentId: existing.assignedAgentId ?? null,
+    partnerName: existing.partnerName ?? null,
+    accountManagerName: existing.accountManagerName ?? null,
+  };
+  const fieldLabels: Record<string, string> = {
+    name: "Name", mobile: "Phone", alternateMobile: "Alt Phone", email: "Email",
+    company: "Company", city: "City", state: "State", country: "Country",
+    source: "Source", status: "Status", priority: "Priority",
+    followUpDate: "Follow-up Date", assignedAgentId: "Assigned Agent",
+    partnerName: "Partner", accountManagerName: "Account Manager",
+  };
+  const diff = buildDiff(rawExisting, rawUpdates, fieldLabels);
+
+  if (diff && Object.keys(diff).length > 0) {
+    const changedFields = Object.keys(diff).join(", ");
+    await logActivity(id, req.auth!.userId, "lead_edited", `Edited contact (${changedFields})`, lead.mobile, diff);
   }
 
   const agentMap = await buildAgentMap([lead]);
@@ -441,6 +526,7 @@ router.delete("/leads/:id", requireAuth, requireAdmin, async (req, res): Promise
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const [lead] = await db.delete(leadsTable).where(eq(leadsTable.id, id)).returning();
   if (!lead) { res.status(404).json({ error: "Lead not found" }); return; }
+  await logActivity(null, req.auth!.userId, "lead_deleted", `Deleted contact "${lead.name}"`, lead.mobile, null);
   res.json({ success: true, message: "Lead deleted" });
 });
 
@@ -449,7 +535,10 @@ router.patch("/leads/:id/assign", requireAuth, requireAdmin, async (req, res): P
   const { agentId } = req.body;
   const [lead] = await db.update(leadsTable).set({ assignedAgentId: parseInt(agentId, 10) }).where(eq(leadsTable.id, id)).returning();
   if (!lead) { res.status(404).json({ error: "Lead not found" }); return; }
-  await logActivity(id, req.auth!.userId, "lead_assigned", `Lead assigned to agent ID ${agentId}`);
+  const [assignedAgent] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, parseInt(agentId, 10)));
+  await logActivity(id, req.auth!.userId, "lead_assigned", `Assigned contact to agent "${assignedAgent?.name ?? agentId}"`, lead.mobile, {
+    "Assigned Agent": { from: null, to: assignedAgent?.name ?? String(agentId) },
+  });
   const agentMap = await buildAgentMap([lead]);
   res.json(formatLead(lead, lead.assignedAgentId ? agentMap[lead.assignedAgentId] : null));
 });
@@ -474,7 +563,11 @@ router.patch("/leads/:id/close", requireAuth, async (req, res): Promise<void> =>
     closingDate: new Date(),
   }).where(eq(leadsTable.id, id)).returning();
 
-  await logActivity(id, req.auth!.userId, "deal_closed", `Deal closed: $${revenueAmount} - ${closingRemark}`);
+  await logActivity(id, req.auth!.userId, "deal_closed", `Deal closed: ₹${revenueAmount}`, lead.mobile, {
+    "Status": { from: existing.status, to: status || "closed_won" },
+    "Revenue": { from: null, to: `₹${revenueAmount}` },
+    "Closing Remark": { from: null, to: closingRemark },
+  });
   const agentMap = await buildAgentMap([lead]);
   res.json(formatLead(lead, lead.assignedAgentId ? agentMap[lead.assignedAgentId] : null));
 });
@@ -506,7 +599,12 @@ router.post("/leads/:id/notes", requireAuth, async (req, res): Promise<void> => 
     await db.update(leadsTable).set({ followUpDate: new Date(followUpDate) }).where(eq(leadsTable.id, id));
   }
 
-  await logActivity(id, req.auth!.userId, "note_added", `Note added: "${content.substring(0, 60)}"`);
+  const [noteLead] = await db.select({ mobile: leadsTable.mobile }).from(leadsTable).where(eq(leadsTable.id, id));
+  await logActivity(id, req.auth!.userId, "note_added", `Note added${callOutcome ? ` (${callOutcome})` : ""}`, noteLead?.mobile ?? null, {
+    "Note": { from: null, to: content.substring(0, 120) },
+    ...(callOutcome ? { "Outcome": { from: null, to: callOutcome } } : {}),
+    ...(followUpDate ? { "Follow-up Date": { from: null, to: followUpDate } } : {}),
+  });
   const [agent] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.auth!.userId));
   res.status(201).json({
     id: note.id, leadId: note.leadId, content: note.content, callOutcome: note.callOutcome ?? null,
@@ -543,7 +641,12 @@ router.post("/leads/:id/calls", requireAuth, async (req, res): Promise<void> => 
   }).returning();
 
   await db.update(leadsTable).set({ lastCalledAt: new Date() }).where(eq(leadsTable.id, id));
-  await logActivity(id, req.auth!.userId, "call_logged", `Call logged${outcome ? `: ${outcome}` : ""}`);
+  const [callLead] = await db.select({ mobile: leadsTable.mobile }).from(leadsTable).where(eq(leadsTable.id, id));
+  await logActivity(id, req.auth!.userId, "call_logged", `Call logged${outcome ? `: ${outcome}` : ""}`, callLead?.mobile ?? null, {
+    ...(outcome ? { "Outcome": { from: null, to: outcome } } : {}),
+    ...(duration ? { "Duration": { from: null, to: `${Math.floor(Number(duration) / 60)}m ${Number(duration) % 60}s` } } : {}),
+    ...(notes ? { "Notes": { from: null, to: String(notes).substring(0, 120) } } : {}),
+  });
   const [agent] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.auth!.userId));
   res.status(201).json({
     id: call.id, leadId: call.leadId, agentId: call.agentId, agentName: agent?.name ?? "Unknown",

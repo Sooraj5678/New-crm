@@ -43,6 +43,7 @@ interface DialerLead {
   followUpDate?: string | null;
   partnerName?: string | null;
   accountManagerName?: string | null;
+  assignedAt?: string | null;
   notes?: Array<{ id: number; content: string; callOutcome?: string | null; agentName: string; createdAt: string }>;
 }
 
@@ -89,6 +90,7 @@ export default function Dialer() {
     totalCalls: 0, connectedCalls: 0, followUpsScheduled: 0, dealsWon: 0, revenueGenerated: 0,
   });
   const [dbSessionId, setDbSessionId] = useState<number | null>(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
   const [callStart, setCallStart] = useState<Date | null>(null);
   const callStartRef = useRef<Date | null>(null);
   const [postCallOpen, setPostCallOpen] = useState(false);
@@ -153,6 +155,7 @@ export default function Dialer() {
           setSessionStats({ totalCalls: 0, connectedCalls: 0, followUpsScheduled: 0, dealsWon: 0, revenueGenerated: 0 });
           setSessionEnded(false);
           setDbSessionId(null);
+          setSessionStartedAt(null);
           setView("start");
         }
       } catch {
@@ -170,6 +173,7 @@ export default function Dialer() {
     try {
       const session = await createSessionMutation.mutateAsync();
       setDbSessionId(session.id);
+      setSessionStartedAt(session.startedAt);
       const data = await fetchNextLead([], session.id);
       if (data.exhausted || !data.lead) { setView("exhausted"); return; }
       setLead(data.lead);
@@ -370,6 +374,7 @@ export default function Dialer() {
         onRefresh={() => {
           setView("start"); setSessionEnded(false); setCalledLeadIds([]);
           setSessionStats({ totalCalls: 0, connectedCalls: 0, followUpsScheduled: 0, dealsWon: 0, revenueGenerated: 0 });
+          setDbSessionId(null); setSessionStartedAt(null);
         }}
         onRequestMore={() => toast.info("Request sent to admin")}
       />
@@ -404,6 +409,11 @@ export default function Dialer() {
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <StatusBadge status={lead.status} />
                   <PriorityBadge priority={lead.priority} />
+                  {sessionStartedAt && lead.assignedAt && new Date(lead.assignedAt) > new Date(sessionStartedAt) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white text-xs font-bold animate-pulse">
+                      <Zap size={10} fill="white" /> NEW
+                    </span>
+                  )}
                 </div>
               </div>
               {callStart && (

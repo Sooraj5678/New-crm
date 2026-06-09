@@ -25,6 +25,7 @@ export const leadsTable = pgTable("leads", {
   closingRemark: text("closing_remark"),
   closingDate: timestamp("closing_date", { withTimezone: true }),
   lastCalledAt: timestamp("last_called_at", { withTimezone: true }),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

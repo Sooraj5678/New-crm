@@ -31,6 +31,7 @@ function formatLead(
     closingRemark: lead.closingRemark ?? null,
     closingDate: lead.closingDate ? lead.closingDate.toISOString() : null,
     lastCalledAt: lead.lastCalledAt ? lead.lastCalledAt.toISOString() : null,
+    assignedAt: lead.assignedAt ? lead.assignedAt.toISOString() : null,
     createdAt: lead.createdAt.toISOString(),
     updatedAt: lead.updatedAt.toISOString(),
   };
@@ -165,6 +166,7 @@ router.post("/leads", requireAuth, async (req, res): Promise<void> => {
     priority: priority || "medium",
     followUpDate: followUpDate ? new Date(followUpDate) : null,
     assignedAgentId: agentId ?? null,
+    assignedAt: agentId ? new Date() : null,
     partnerName: partnerName || null,
     accountManagerName: accountManagerName || null,
   }).returning();
@@ -271,9 +273,24 @@ router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> =>
 
   const nextConditions = baseConditions;
 
+  let sessionStartedAt: Date | null = null;
+  if (sessionId) {
+    const [session] = await db
+      .select({ startedAt: dialerSessionsTable.startedAt })
+      .from(dialerSessionsTable)
+      .where(eq(dialerSessionsTable.id, sessionId));
+    sessionStartedAt = session?.startedAt ?? null;
+  }
+
   const [lead] = await db.select().from(leadsTable)
     .where(and(...nextConditions))
     .orderBy(
+      sessionStartedAt
+        ? sql`CASE WHEN ${leadsTable.assignedAt} > ${sessionStartedAt} THEN 0 ELSE 1 END`
+        : sql`1`,
+      sessionStartedAt
+        ? sql`CASE WHEN ${leadsTable.assignedAt} > ${sessionStartedAt} THEN ${leadsTable.assignedAt} ELSE NULL END ASC NULLS LAST`
+        : sql`NULL`,
       sql`${leadsTable.lastCalledAt} IS NOT NULL`,
       sql`CASE ${leadsTable.priority} WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END`,
       sql`${leadsTable.followUpDate} ASC NULLS LAST`,
@@ -388,7 +405,10 @@ router.patch("/leads/:id", requireAuth, async (req, res): Promise<void> => {
   if (status) updates.status = status;
   if (priority) updates.priority = priority;
   if (followUpDate !== undefined) updates.followUpDate = followUpDate ? new Date(followUpDate) : null;
-  if (assignedAgentId !== undefined && req.auth!.role === "admin") updates.assignedAgentId = assignedAgentId ? parseInt(assignedAgentId, 10) : null;
+  if (assignedAgentId !== undefined && req.auth!.role === "admin") {
+    updates.assignedAgentId = assignedAgentId ? parseInt(assignedAgentId, 10) : null;
+    if (updates.assignedAgentId !== existing.assignedAgentId) updates.assignedAt = new Date();
+  }
   if (partnerName !== undefined) updates.partnerName = partnerName || null;
   if (accountManagerName !== undefined) updates.accountManagerName = accountManagerName || null;
 
@@ -474,7 +494,7 @@ router.post("/leads/bulk-assign", requireAuth, requireAdmin, async (req, res): P
 
   await db.transaction(async (tx) => {
     await tx.update(leadsTable)
-      .set({ assignedAgentId: parsedAgentId })
+      .set({ assignedAgentId: parsedAgentId, assignedAt: new Date() })
       .where(inArray(leadsTable.id, validIds));
     await tx.insert(activitiesTable).values({
       leadId: null,
@@ -533,7 +553,7 @@ router.delete("/leads/:id", requireAuth, requireAdmin, async (req, res): Promise
 router.patch("/leads/:id/assign", requireAuth, requireAdmin, async (req, res): Promise<void> => {
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const { agentId } = req.body;
-  const [lead] = await db.update(leadsTable).set({ assignedAgentId: parseInt(agentId, 10) }).where(eq(leadsTable.id, id)).returning();
+  const [lead] = await db.update(leadsTable).set({ assignedAgentId: parseInt(agentId, 10), assignedAt: new Date() }).where(eq(leadsTable.id, id)).returning();
   if (!lead) { res.status(404).json({ error: "Lead not found" }); return; }
   const [assignedAgent] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, parseInt(agentId, 10)));
   await logActivity(id, req.auth!.userId, "lead_assigned", `Assigned contact to agent "${assignedAgent?.name ?? agentId}"`, lead.mobile, {

@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS "activities" (
 ALTER TABLE "activities" ADD COLUMN IF NOT EXISTS "phone" text;
 ALTER TABLE "activities" ADD COLUMN IF NOT EXISTS "changes" jsonb;
 
+ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "assigned_at" timestamp with time zone;
+
 CREATE TABLE IF NOT EXISTS "dialer_sessions" (
   "id" serial PRIMARY KEY NOT NULL,
   "agent_id" integer NOT NULL,

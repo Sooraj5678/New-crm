@@ -78,10 +78,12 @@ export function MultiSelectDropdown({
 
   return (
     <div ref={ref} className={`relative ${maxWidth} ${className}`}>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-1.5 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[38px]"
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(o => !o); } }}
+        className="w-full flex items-center gap-1.5 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[38px] cursor-pointer select-none"
       >
         <div className="flex flex-wrap gap-1 flex-1 min-w-0">
           {selected.length === 0 ? (
@@ -93,19 +95,21 @@ export function MultiSelectDropdown({
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium"
               >
                 {selectedLabels[i]}
-                <button
-                  type="button"
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={e => removeTag(v, e)}
-                  className="hover:text-destructive transition-colors"
+                  onKeyDown={e => { if (e.key === "Enter") { e.stopPropagation(); removeTag(v, e as unknown as React.MouseEvent); } }}
+                  className="hover:text-destructive transition-colors cursor-pointer"
                 >
                   <X size={10} />
-                </button>
+                </span>
               </span>
             ))
           )}
         </div>
         <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </div>
 
       {open && (
         <div className="absolute z-50 top-full mt-1 left-0 w-56 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">

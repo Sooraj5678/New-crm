@@ -374,6 +374,15 @@ router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> =>
   });
 });
 
+router.get("/leads/managers", requireAuth, async (_req, res): Promise<void> => {
+  const rows = await db
+    .selectDistinct({ name: leadsTable.accountManagerName })
+    .from(leadsTable)
+    .where(sql`${leadsTable.accountManagerName} IS NOT NULL AND ${leadsTable.accountManagerName} != ''`)
+    .orderBy(leadsTable.accountManagerName);
+  res.json(rows.map(r => r.name).filter(Boolean));
+});
+
 router.get("/leads/:id", requireAuth, async (req, res): Promise<void> => {
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, id));
@@ -717,15 +726,6 @@ router.get("/leads/:id/activities", requireAuth, async (req, res): Promise<void>
     description: a.description, agentId: a.agentId, agentName: agentMap[a.agentId] ?? "Unknown",
     createdAt: a.createdAt.toISOString(),
   })));
-});
-
-router.get("/leads/managers", requireAuth, async (_req, res): Promise<void> => {
-  const rows = await db
-    .selectDistinct({ name: leadsTable.accountManagerName })
-    .from(leadsTable)
-    .where(sql`${leadsTable.accountManagerName} IS NOT NULL AND ${leadsTable.accountManagerName} != ''`)
-    .orderBy(leadsTable.accountManagerName);
-  res.json(rows.map(r => r.name).filter(Boolean));
 });
 
 export default router;

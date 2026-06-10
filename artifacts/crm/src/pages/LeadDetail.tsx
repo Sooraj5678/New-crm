@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import { useGetLead, useUpdateLead, useAddLeadNote, useCloseLead, useListUsers, useAssignLead, getGetLeadQueryKey, getListLeadsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Phone, Mail, Building2, MapPin, Edit2, Save, X, Plus, Clock, DollarSign, Loader2, CheckCircle2, Briefcase, UserCog, User, CalendarDays } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Building2, MapPin, Edit2, Save, X, Plus, Clock, DollarSign, Loader2, CheckCircle2, Briefcase, UserCog, User, CalendarDays, Download } from "lucide-react";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
 import { formatDate, formatDateTime, timeAgo, STATUS_LABELS, PRIORITY_LABELS, ALL_STATUSES, ALL_PRIORITIES } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -108,6 +108,30 @@ export default function LeadDetail({ basePath }: { basePath: "admin" | "agent" }
     closeMutation.mutate({ id, data: { revenueAmount: parseFloat(revenue), closingRemark, status: "closed_won" } });
   };
 
+  const exportLead = () => {
+    if (!lead) return;
+    const headers = ["ID","Name","Mobile","Alternate Mobile","Email","Company","City","State","Country","Source","Status","Priority","Partner Name","Account Manager","Revenue Amount","Assigned Agent","Follow-up Date","Closing Date","Last Called","Assigned At","Created At","Updated At"];
+    const row = [
+      lead.id, lead.name, lead.mobile, lead.alternateMobile ?? "",
+      lead.email ?? "", lead.company ?? "", lead.city ?? "", lead.state ?? "", "",
+      lead.source ?? "", lead.status, lead.priority,
+      lead.partnerName ?? "", lead.accountManagerName ?? "",
+      lead.revenueAmount ?? "", lead.assignedAgentName ?? "",
+      lead.followUpDate ?? "", lead.closingDate ?? "", lead.lastCalledAt ?? "",
+      lead.assignedAt ?? "", lead.createdAt, lead.updatedAt,
+    ];
+    const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers, row].map(r => r.map(escape).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lead-${lead.id}-${lead.name.replace(/\s+/g, "-").toLowerCase()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Lead exported");
+  };
+
   const InputCls = "w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
   return (
@@ -148,6 +172,9 @@ export default function LeadDetail({ basePath }: { basePath: "admin" | "agent" }
               </>
             ) : (
               <>
+                <button onClick={exportLead} className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm hover:bg-muted transition-colors">
+                  <Download size={15} /> Export
+                </button>
                 {lead.status !== "closed_won" && lead.status !== "closed_lost" && (
                   <button onClick={() => setShowCloseModal(true)} className="flex items-center gap-1.5 border border-green-500 text-green-600 dark:text-green-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
                     <CheckCircle2 size={15} /> Close Won

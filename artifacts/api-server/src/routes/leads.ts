@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, leadsTable, usersTable, leadNotesTable, leadCallsTable, activitiesTable, dialerSessionsTable } from "@workspace/db";
 import { eq, and, ilike, or, gte, lte, sql, desc, inArray } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middlewares/auth";
+import * as XLSX from "xlsx";
 
 const router: IRouter = Router();
 
@@ -375,10 +376,17 @@ router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> =>
 });
 
 router.get("/leads/export", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const requestId = Date.now();
+  console.log(`[EXPORT:${requestId}] Export route hit — method=${req.method} url=${req.url}`);
+
   const {
     agentId, status, priority, city, source, search,
     followUpFrom, followUpTo, partnerName, accountManagerName,
+    format,
   } = req.query as Record<string, string>;
+
+  const exportFormat = (format === "xlsx" ? "xlsx" : "csv") as "csv" | "xlsx";
+  console.log(`[EXPORT:${requestId}] Requested format: ${exportFormat}`);
 
   const conditions: ReturnType<typeof eq>[] = [];
 
@@ -424,9 +432,13 @@ router.get("/leads/export", requireAuth, requireAdmin, async (req, res): Promise
     : db.select().from(leadsTable)
   ).orderBy(desc(leadsTable.updatedAt));
 
+  console.log(`[EXPORT:${requestId}] Leads fetched: ${leads.length}`);
+
   const agentMap = await buildAgentMap(leads);
 
-  const headers = ["ID","Name","Mobile","Alternate Mobile","Email","Company","City","State","Country","Source","Status","Priority","Partner Name","Account Manager","Revenue Amount","Assigned Agent","Follow-up Date","Closing Date","Last Called","Assigned At","Created At","Updated At"];
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const columns = ["ID","Name","Mobile","Alternate Mobile","Email","Company","City","State","Country","Source","Status","Priority","Partner Name","Account Manager","Revenue Amount","Assigned Agent","Follow-up Date","Closing Date","Last Called","Assigned At","Created At","Updated At"];
+
   const rows = leads.map(l => [
     l.id,
     l.name,
@@ -452,12 +464,28 @@ router.get("/leads/export", requireAuth, requireAdmin, async (req, res): Promise
     l.updatedAt.toISOString(),
   ]);
 
-  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const csv = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
-
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", `attachment; filename="leads-export-${new Date().toISOString().slice(0,10)}.csv"`);
-  res.send(csv);
+  if (exportFormat === "xlsx") {
+    const wb = XLSX.utils.book_new();
+    const wsData = [columns, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+    const contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    console.log(`[EXPORT:${requestId}] Sending xlsx — Content-Type: ${contentType} — size: ${buf.length} bytes`);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="leads-export-${dateStr}.xlsx"`);
+    res.setHeader("Content-Length", buf.length);
+    res.end(buf);
+  } else {
+    const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [columns, ...rows].map(r => r.map(escape).join(",")).join("\n");
+    const contentType = "text/csv; charset=utf-8";
+    console.log(`[EXPORT:${requestId}] Sending csv — Content-Type: ${contentType} — length: ${csv.length} chars`);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="leads-export-${dateStr}.csv"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(csv);
+  }
 });
 
 router.get("/leads/managers", requireAuth, async (_req, res): Promise<void> => {

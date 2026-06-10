@@ -66,6 +66,15 @@ export default defineConfig(async () => {
         "/api": {
           target: apiProxyTarget,
           changeOrigin: true,
+          configure(proxy) {
+            proxy.on("error", (err, _req, res) => {
+              console.error("[vite-proxy] /api proxy error:", err.message);
+              if ("writeHead" in res && typeof res.writeHead === "function") {
+                res.writeHead(502, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "API server unreachable", detail: err.message }));
+              }
+            });
+          },
         },
       },
     },

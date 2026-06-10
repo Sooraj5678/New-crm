@@ -258,9 +258,23 @@ export default function AdminLeads() {
   };
 
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  const exportAllCsv = async () => {
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  const runExport = async (format: "csv" | "xlsx") => {
+    setShowExportMenu(false);
     setIsExporting(true);
+    const date = new Date().toISOString().slice(0, 10);
     try {
       const qp = new URLSearchParams();
       if (search) qp.set("search", search);
@@ -269,24 +283,50 @@ export default function AdminLeads() {
       if (filterAgentId) qp.set("agentId", filterAgentId);
       if (filterPartnerNames.length) qp.set("partnerName", filterPartnerNames.join(","));
       if (filterAccountManagerNames.length) qp.set("accountManagerName", filterAccountManagerNames.join(","));
+      qp.set("format", format);
 
       const token = localStorage.getItem("crm_token");
       const res = await fetch(`/api/leads/export?${qp.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Accept: format === "xlsx"
+            ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            : "text/csv",
+        },
       });
-      if (!res.ok) throw new Error("Export failed");
+
+      if (!res.ok) {
+        let errMsg = `Export failed (HTTP ${res.status})`;
+        try {
+          const body = await res.json() as { error?: string };
+          if (body?.error) errMsg = body.error;
+        } catch { /* non-JSON error body */ }
+        throw new Error(errMsg);
+      }
+
+      const contentType = res.headers.get("Content-Type") ?? "";
+      console.log("[export] response Content-Type:", contentType);
+
+      if (contentType.includes("text/html")) {
+        throw new Error("Export returned HTML instead of a file — check API routing and authentication.");
+      }
 
       const blob = await res.blob();
+      if (blob.size === 0) throw new Error("Export returned an empty file");
+
       const url = URL.createObjectURL(blob);
-      const date = new Date().toISOString().slice(0, 10);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `leads-export-${date}.csv`;
+      a.download = `leads-export-${date}.${format}`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success(`Exported ${total.toLocaleString()} leads`);
-    } catch {
-      toast.error("Export failed");
+      toast.success(`Exported ${total.toLocaleString()} leads as ${format.toUpperCase()}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Export failed";
+      console.error("[export] error:", msg);
+      toast.error(msg);
     } finally {
       setIsExporting(false);
     }
@@ -382,10 +422,35 @@ export default function AdminLeads() {
           <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
             <Upload size={15} /> Import
           </button>
-          <button onClick={exportAllCsv} disabled={isExporting} className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60">
-            {isExporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-            {isExporting ? "Exporting..." : `Export All${hasFilters ? " (filtered)" : ""}`}
-          </button>
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => !isExporting && setShowExportMenu(v => !v)}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60"
+            >
+              {isExporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {isExporting ? "Exporting..." : `Export${hasFilters ? " (filtered)" : ""}`}
+              {!isExporting && <ChevronDown size={13} className="ml-0.5 opacity-60" />}
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-1 w-44 bg-popover border border-border rounded-lg shadow-lg z-20 py-1">
+                <button
+                  onClick={() => runExport("csv")}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                >
+                  <Download size={14} className="text-muted-foreground" />
+                  Export as CSV
+                </button>
+                <button
+                  onClick={() => runExport("xlsx")}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2"
+                >
+                  <Download size={14} className="text-green-600 dark:text-green-400" />
+                  Export as Excel
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
             <Plus size={15} /> Add Lead
           </button>

@@ -257,24 +257,39 @@ export default function AdminLeads() {
     importMutation.mutate({ data: { leads } });
   };
 
-  const exportCsv = () => {
-    const leads = data?.leads ?? [];
-    const rows = [
-      ["ID", "Name", "Mobile", "Email", "Company", "City", "State", "Status", "Priority", "Partner Name", "Account Manager Name", "Agent", "Follow-up", "Created"],
-      ...leads.map(l => [
-        l.id, l.name, l.mobile, l.email ?? "", l.company ?? "", l.city ?? "", "",
-        l.status, l.priority,
-        l.partnerName ?? "",
-        l.accountManagerName ?? "",
-        l.assignedAgentName ?? "",
-        formatDate(l.followUpDate), formatDate(l.createdAt),
-      ]),
-    ];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "leads.csv"; a.click();
-    URL.revokeObjectURL(url);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const exportAllCsv = async () => {
+    setIsExporting(true);
+    try {
+      const qp = new URLSearchParams();
+      if (search) qp.set("search", search);
+      if (filterStatuses.length) qp.set("status", filterStatuses.join(","));
+      if (filterPriorities.length) qp.set("priority", filterPriorities.join(","));
+      if (filterAgentId) qp.set("agentId", filterAgentId);
+      if (filterPartnerNames.length) qp.set("partnerName", filterPartnerNames.join(","));
+      if (filterAccountManagerNames.length) qp.set("accountManagerName", filterAccountManagerNames.join(","));
+
+      const token = localStorage.getItem("crm_token");
+      const res = await fetch(`/api/leads/export?${qp.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().slice(0, 10);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads-export-${date}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${total.toLocaleString()} leads`);
+    } catch {
+      toast.error("Export failed");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const currentLeads = data?.leads ?? [];
@@ -367,8 +382,9 @@ export default function AdminLeads() {
           <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
             <Upload size={15} /> Import
           </button>
-          <button onClick={exportCsv} className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">
-            <Download size={15} /> Export
+          <button onClick={exportAllCsv} disabled={isExporting} className="flex items-center gap-1.5 border border-border px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60">
+            {isExporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+            {isExporting ? "Exporting..." : `Export All${hasFilters ? " (filtered)" : ""}`}
           </button>
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
             <Plus size={15} /> Add Lead

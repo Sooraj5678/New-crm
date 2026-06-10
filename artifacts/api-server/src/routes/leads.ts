@@ -374,6 +374,92 @@ router.get("/leads/next-dialer", requireAuth, async (req, res): Promise<void> =>
   });
 });
 
+router.get("/leads/export", requireAuth, requireAdmin, async (req, res): Promise<void> => {
+  const {
+    agentId, status, priority, city, source, search,
+    followUpFrom, followUpTo, partnerName, accountManagerName,
+  } = req.query as Record<string, string>;
+
+  const conditions: ReturnType<typeof eq>[] = [];
+
+  if (agentId) conditions.push(eq(leadsTable.assignedAgentId, parseInt(agentId, 10)));
+
+  if (status) {
+    const statuses = status.split(",").map(s => s.trim()).filter(Boolean);
+    if (statuses.length === 1) conditions.push(eq(leadsTable.status, statuses[0]));
+    else if (statuses.length > 1) conditions.push(inArray(leadsTable.status, statuses) as ReturnType<typeof eq>);
+  }
+  if (priority) {
+    const priorities = priority.split(",").map(p => p.trim()).filter(Boolean);
+    if (priorities.length === 1) conditions.push(eq(leadsTable.priority, priorities[0]));
+    else if (priorities.length > 1) conditions.push(inArray(leadsTable.priority, priorities) as ReturnType<typeof eq>);
+  }
+  if (city) conditions.push(ilike(leadsTable.city, `%${city}%`));
+  if (source) conditions.push(eq(leadsTable.source, source));
+  if (followUpFrom) conditions.push(gte(leadsTable.followUpDate, new Date(followUpFrom)));
+  if (followUpTo) conditions.push(lte(leadsTable.followUpDate, new Date(followUpTo)));
+  if (partnerName) {
+    const names = partnerName.split(",").map(n => n.trim()).filter(Boolean);
+    if (names.length === 1) conditions.push(ilike(leadsTable.partnerName, `%${names[0]}%`));
+    else if (names.length > 1) conditions.push(or(...names.map(n => ilike(leadsTable.partnerName, `%${n}%`)))! as ReturnType<typeof eq>);
+  }
+  if (accountManagerName) {
+    const names = accountManagerName.split(",").map(n => n.trim()).filter(Boolean);
+    if (names.length === 1) conditions.push(ilike(leadsTable.accountManagerName, `%${names[0]}%`));
+    else if (names.length > 1) conditions.push(or(...names.map(n => ilike(leadsTable.accountManagerName, `%${n}%`)))! as ReturnType<typeof eq>);
+  }
+  if (search) {
+    const cond = or(
+      ilike(leadsTable.name, `%${search}%`),
+      ilike(leadsTable.mobile, `%${search}%`),
+      ilike(leadsTable.email, `%${search}%`),
+      ilike(leadsTable.company, `%${search}%`),
+    )!;
+    conditions.push(cond as ReturnType<typeof eq>);
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const leads = await (whereClause
+    ? db.select().from(leadsTable).where(whereClause)
+    : db.select().from(leadsTable)
+  ).orderBy(desc(leadsTable.updatedAt));
+
+  const agentMap = await buildAgentMap(leads);
+
+  const headers = ["ID","Name","Mobile","Alternate Mobile","Email","Company","City","State","Country","Source","Status","Priority","Partner Name","Account Manager","Revenue Amount","Assigned Agent","Follow-up Date","Closing Date","Last Called","Assigned At","Created At","Updated At"];
+  const rows = leads.map(l => [
+    l.id,
+    l.name,
+    l.mobile,
+    l.alternateMobile ?? "",
+    l.email ?? "",
+    l.company ?? "",
+    l.city ?? "",
+    l.state ?? "",
+    l.country ?? "",
+    l.source ?? "",
+    l.status,
+    l.priority,
+    l.partnerName ?? "",
+    l.accountManagerName ?? "",
+    l.revenueAmount ?? "",
+    l.assignedAgentId ? (agentMap[l.assignedAgentId] ?? "") : "",
+    l.followUpDate ? l.followUpDate.toISOString() : "",
+    l.closingDate ? l.closingDate.toISOString() : "",
+    l.lastCalledAt ? l.lastCalledAt.toISOString() : "",
+    l.assignedAt ? l.assignedAt.toISOString() : "",
+    l.createdAt.toISOString(),
+    l.updatedAt.toISOString(),
+  ]);
+
+  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", `attachment; filename="leads-export-${new Date().toISOString().slice(0,10)}.csv"`);
+  res.send(csv);
+});
+
 router.get("/leads/managers", requireAuth, async (_req, res): Promise<void> => {
   const rows = await db
     .selectDistinct({ name: leadsTable.accountManagerName })

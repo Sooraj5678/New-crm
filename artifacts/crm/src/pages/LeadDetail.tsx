@@ -109,27 +109,40 @@ export default function LeadDetail({ basePath }: { basePath: "admin" | "agent" }
   };
 
   const exportLead = () => {
-    if (!lead) return;
-    const headers = ["ID","Name","Mobile","Alternate Mobile","Email","Company","City","State","Country","Source","Status","Priority","Partner Name","Account Manager","Revenue Amount","Assigned Agent","Follow-up Date","Closing Date","Last Called","Assigned At","Created At","Updated At"];
-    const row = [
-      lead.id, lead.name, lead.mobile, lead.alternateMobile ?? "",
-      lead.email ?? "", lead.company ?? "", lead.city ?? "", lead.state ?? "", "",
-      lead.source ?? "", lead.status, lead.priority,
-      lead.partnerName ?? "", lead.accountManagerName ?? "",
-      lead.revenueAmount ?? "", lead.assignedAgentName ?? "",
-      lead.followUpDate ?? "", lead.closingDate ?? "", lead.lastCalledAt ?? "",
-      lead.assignedAt ?? "", lead.createdAt, lead.updatedAt,
-    ];
-    const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = [headers, row].map(r => r.map(escape).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `lead-${lead.id}-${lead.name.replace(/\s+/g, "-").toLowerCase()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Lead exported");
+    try {
+      if (!lead) return;
+      const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const headers = ["ID","Name","Mobile","Alternate Mobile","Email","Company","City","State","Country","Source","Status","Priority","Partner Name","Account Manager","Revenue Amount","Assigned Agent","Follow-up Date","Closing Date","Last Called","Created At","Updated At"];
+      const row: unknown[] = [
+        lead.id, lead.name, lead.mobile, lead.alternateMobile ?? "",
+        lead.email ?? "", lead.company ?? "", lead.city ?? "", lead.state ?? "", "",
+        lead.source ?? "", lead.status, lead.priority,
+        (lead as Record<string, unknown>).partnerName ?? "",
+        (lead as Record<string, unknown>).accountManagerName ?? "",
+        lead.revenueAmount ?? "",
+        lead.assignedAgentName ?? "",
+        lead.followUpDate ?? "",
+        lead.closingDate ?? "",
+        lead.lastCalledAt ?? "",
+        lead.createdAt, lead.updatedAt,
+      ];
+      const csv = [headers.map(escape).join(","), row.map(escape).join(",")].join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `lead-${lead.id}-${lead.name.replace(/\s+/g, "-").toLowerCase()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      console.log(`[export-lead] Exported lead ${lead.id} (${lead.name}) — ${blob.size} bytes`);
+      toast.success("Lead exported");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Export failed";
+      console.error("[export-lead] error:", msg);
+      toast.error(msg);
+    }
   };
 
   const InputCls = "w-full px-2.5 py-1.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring";

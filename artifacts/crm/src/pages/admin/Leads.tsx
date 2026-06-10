@@ -274,9 +274,10 @@ export default function AdminLeads() {
       qp.set("format", format);
 
       const token = localStorage.getItem("crm_token");
-      console.log(`[export] Starting ${format.toUpperCase()} export — URL: /api/leads/export?${qp.toString()}`);
+      const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+      console.log(`[export] Starting ${format.toUpperCase()} export — URL: ${baseUrl}/api/leads/export?${qp.toString()}`);
 
-      const res = await fetch(`/api/leads/export?${qp.toString()}`, {
+      const res = await fetch(`${baseUrl}/api/leads/export?${qp.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 

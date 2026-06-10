@@ -6,7 +6,8 @@ import { getAuthHeaders } from "@/lib/apiClient";
 import { Loader2, User, Lock, Building2, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
-const API = "/api";
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+const API = `${API_BASE}/api`;
 function apiGet(path: string) {
   return fetch(`${API}${path}`, { headers: { ...getAuthHeaders() } }).then(r => r.json());
 }

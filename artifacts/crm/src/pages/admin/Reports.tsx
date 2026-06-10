@@ -21,9 +21,10 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState<"overview" | "partners" | "account-managers">("overview");
 
   useEffect(() => {
-    fetch("/api/dashboard/partner-stats", { headers: getAuthHeaders() })
+    const baseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+    fetch(`${baseUrl}/api/dashboard/partner-stats`, { headers: getAuthHeaders() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setPartnerStats(d); }).catch(() => {});
-    fetch("/api/dashboard/account-manager-stats", { headers: getAuthHeaders() })
+    fetch(`${baseUrl}/api/dashboard/account-manager-stats`, { headers: getAuthHeaders() })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setAmStats(d); }).catch(() => {});
   }, []);
 

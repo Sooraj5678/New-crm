@@ -1,22 +1,141 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useListLeads, useCreateLead, useDeleteLead, useAssignLead, useImportLeads, useListUsers, getListLeadsQueryKey, customFetch, ApiError } from "@workspace/api-client-react";
 import type { ListLeadsParams } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Trash2, UserCheck, Upload, ChevronLeft, ChevronRight, Loader2, Target, X, Download, Briefcase, UserCog, CheckSquare, Square } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search, Trash2, UserCheck, Upload, ChevronLeft, ChevronRight, Loader2, Target, X, Download, Briefcase, UserCog, CheckSquare, Square, ChevronDown, Check } from "lucide-react";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { MultiSelectDropdown } from "@/components/MultiSelectDropdown";
+import type { MultiSelectOption } from "@/components/MultiSelectDropdown";
 import { formatDate, STATUS_LABELS, PRIORITY_LABELS, ALL_STATUSES, ALL_PRIORITIES } from "@/lib/utils";
 import { Link } from "wouter";
 import { toast } from "sonner";
+
+interface Partner { id: number; name: string; code?: string | null; isActive: boolean; }
+
+function usePartners() {
+  return useQuery<Partner[]>({
+    queryKey: ["/api/partners"],
+    queryFn: () => customFetch<Partner[]>("/api/partners"),
+  });
+}
+
+function useAccountManagers() {
+  return useQuery<string[]>({
+    queryKey: ["/api/leads/managers"],
+    queryFn: () => customFetch<string[]>("/api/leads/managers"),
+  });
+}
+
+interface SearchableSelectProps {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  onAddNew?: (name: string) => Promise<void> | void;
+  addNewLabel?: string;
+  className?: string;
+}
+
+function SearchableSelect({ value, onChange, options, placeholder = "Select...", onAddNew, addNewLabel = "Add new", className = "" }: SearchableSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function outside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setSearch(""); setShowAdd(false); setNewName("");
+      }
+    }
+    document.addEventListener("mousedown", outside);
+    return () => document.removeEventListener("mousedown", outside);
+  }, []);
+
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  const selectedLabel = options.find(o => o.value === value)?.label ?? value;
+
+  const handleAdd = async () => {
+    const trimmed = newName.trim();
+    if (!trimmed || !onAddNew) return;
+    setIsAdding(true);
+    try {
+      await onAddNew(trimmed);
+      onChange(trimmed);
+      setShowAdd(false); setNewName(""); setOpen(false); setSearch("");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-h-[38px]"
+      >
+        <span className={value ? "text-foreground" : "text-muted-foreground"}>{value ? selectedLabel : placeholder}</span>
+        <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 w-full min-w-48 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..."
+                className="w-full pl-7 pr-3 py-1.5 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No options</p>}
+            {filtered.map(o => (
+              <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false); setSearch(""); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left">
+                <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${value === o.value ? "bg-primary border-primary" : "border-input"}`}>
+                  {value === o.value && <Check size={10} className="text-primary-foreground" />}
+                </span>
+                <span className="truncate">{o.label}</span>
+              </button>
+            ))}
+          </div>
+          {onAddNew && (
+            <div className="border-t border-border p-2">
+              {showAdd ? (
+                <div className="flex gap-1.5">
+                  <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } if (e.key === "Escape") { setShowAdd(false); setNewName(""); } }}
+                    placeholder="Enter name..." className="flex-1 min-w-0 px-2 py-1.5 text-xs rounded border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+                  <button type="button" onClick={handleAdd} disabled={!newName.trim() || isAdding}
+                    className="px-2 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50 hover:bg-primary/90 flex items-center gap-1">
+                    {isAdding && <Loader2 size={10} className="animate-spin" />} Add
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowAdd(true)}
+                  className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-primary font-medium hover:bg-primary/5 rounded transition-colors">
+                  <Plus size={12} /> {addNewLabel}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminLeads() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterPriority, setFilterPriority] = useState("");
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [filterPriorities, setFilterPriorities] = useState<string[]>([]);
   const [filterAgentId, setFilterAgentId] = useState("");
-  const [filterPartnerName, setFilterPartnerName] = useState("");
-  const [filterAccountManagerName, setFilterAccountManagerName] = useState("");
+  const [filterPartnerNames, setFilterPartnerNames] = useState<string[]>([]);
+  const [filterAccountManagerNames, setFilterAccountManagerNames] = useState<string[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showAssign, setShowAssign] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
@@ -31,15 +150,26 @@ export default function AdminLeads() {
 
   const params: ListLeadsParams = { page, limit: 20 };
   if (search) params.search = search;
-  if (filterStatus) params.status = filterStatus;
-  if (filterPriority) params.priority = filterPriority;
+  if (filterStatuses.length > 0) params.status = filterStatuses.join(",");
+  if (filterPriorities.length > 0) params.priority = filterPriorities.join(",");
   if (filterAgentId) params.agentId = parseInt(filterAgentId);
-  if (filterPartnerName) params.partnerName = filterPartnerName;
-  if (filterAccountManagerName) params.accountManagerName = filterAccountManagerName;
+  if (filterPartnerNames.length > 0) params.partnerName = filterPartnerNames.join(",");
+  if (filterAccountManagerNames.length > 0) params.accountManagerName = filterAccountManagerNames.join(",");
 
   const { data, isLoading } = useListLeads(params);
   const { data: users } = useListUsers();
+  const { data: partnersData, refetch: refetchPartners } = usePartners();
+  const { data: managersData, refetch: refetchManagers } = useAccountManagers();
+
   const agents = users?.filter(u => u.role === "agent") ?? [];
+  const partners = partnersData ?? [];
+  const managers = managersData ?? [];
+
+  const partnerOptions: MultiSelectOption[] = partners.map(p => ({ value: p.name, label: p.name }));
+  const managerOptions: MultiSelectOption[] = managers.map(m => ({ value: m, label: m }));
+  const statusOptions: MultiSelectOption[] = ALL_STATUSES.map(s => ({ value: s, label: STATUS_LABELS[s] }));
+  const priorityOptions: MultiSelectOption[] = ALL_PRIORITIES.map(p => ({ value: p, label: PRIORITY_LABELS[p] }));
+  const agentOptions = agents.map(a => ({ value: String(a.id), label: a.name }));
 
   const emptyForm = {
     name: "", mobile: "", email: "", company: "", city: "", state: "", country: "",
@@ -52,6 +182,8 @@ export default function AdminLeads() {
     mutation: {
       onSuccess() {
         qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+        refetchPartners();
+        refetchManagers();
         setShowCreate(false); setForm(emptyForm);
         toast.success("Lead created");
       },
@@ -148,10 +280,10 @@ export default function AdminLeads() {
   const currentLeads = data?.leads ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
-  const hasFilters = !!(search || filterStatus || filterPriority || filterAgentId || filterPartnerName || filterAccountManagerName);
+  const hasFilters = !!(search || filterStatuses.length || filterPriorities.length || filterAgentId || filterPartnerNames.length || filterAccountManagerNames.length);
   const clearFilters = () => {
-    setSearch(""); setFilterStatus(""); setFilterPriority("");
-    setFilterAgentId(""); setFilterPartnerName(""); setFilterAccountManagerName(""); setPage(1);
+    setSearch(""); setFilterStatuses([]); setFilterPriorities([]);
+    setFilterAgentId(""); setFilterPartnerNames([]); setFilterAccountManagerNames([]); setPage(1);
   };
 
   const allCurrentSelected = currentLeads.length > 0 && currentLeads.every(l => selectedIds.has(l.id));
@@ -159,26 +291,14 @@ export default function AdminLeads() {
 
   const toggleSelectAll = useCallback(() => {
     if (allCurrentSelected) {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        currentLeads.forEach(l => next.delete(l.id));
-        return next;
-      });
+      setSelectedIds(prev => { const next = new Set(prev); currentLeads.forEach(l => next.delete(l.id)); return next; });
     } else {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        currentLeads.forEach(l => next.add(l.id));
-        return next;
-      });
+      setSelectedIds(prev => { const next = new Set(prev); currentLeads.forEach(l => next.add(l.id)); return next; });
     }
   }, [allCurrentSelected, currentLeads]);
 
   const toggleSelect = useCallback((id: number) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    setSelectedIds(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   }, []);
 
   const handleBulkAssign = async () => {
@@ -186,62 +306,55 @@ export default function AdminLeads() {
     const leadIds = Array.from(selectedIds);
     const agentId = parseInt(bulkAssignAgentId, 10);
     if (isNaN(agentId) || agentId <= 0) { toast.error("Please select a valid agent"); return; }
-
     setIsBulkAssigning(true);
     try {
       const result = await customFetch<{ updated: number; agentId: number; agentName: string }>(
         "/api/leads/bulk-assign",
-        {
-          method: "POST",
-          body: JSON.stringify({ leadIds, agentId }),
-          headers: { "Content-Type": "application/json" },
-        },
+        { method: "POST", body: JSON.stringify({ leadIds, agentId }), headers: { "Content-Type": "application/json" } },
       );
       await qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-      setSelectedIds(new Set());
-      setShowBulkAssign(false);
-      setBulkAssignAgentId("");
+      setSelectedIds(new Set()); setShowBulkAssign(false); setBulkAssignAgentId("");
       toast.success(`${result.updated} lead${result.updated !== 1 ? "s" : ""} assigned to ${result.agentName}`);
     } catch (err) {
-      const msg = err instanceof ApiError
-        ? (err.data as { error?: string } | null)?.error ?? err.message
-        : "Bulk assign failed";
+      const msg = err instanceof ApiError ? (err.data as { error?: string } | null)?.error ?? err.message : "Bulk assign failed";
       toast.error(msg);
-    } finally {
-      setIsBulkAssigning(false);
-    }
+    } finally { setIsBulkAssigning(false); }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Delete ${selectedIds.size} selected lead${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`)) return;
     const leadIds = Array.from(selectedIds);
-
     setIsBulkDeleting(true);
     try {
       const result = await customFetch<{ deleted: number }>(
         "/api/leads/bulk-delete",
-        {
-          method: "POST",
-          body: JSON.stringify({ leadIds }),
-          headers: { "Content-Type": "application/json" },
-        },
+        { method: "POST", body: JSON.stringify({ leadIds }), headers: { "Content-Type": "application/json" } },
       );
       await qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
       setSelectedIds(new Set());
       toast.success(`${result.deleted} lead${result.deleted !== 1 ? "s" : ""} deleted successfully`);
     } catch (err) {
-      const msg = err instanceof ApiError
-        ? (err.data as { error?: string } | null)?.error ?? err.message
-        : "Bulk delete failed";
+      const msg = err instanceof ApiError ? (err.data as { error?: string } | null)?.error ?? err.message : "Bulk delete failed";
       toast.error(msg);
-    } finally {
-      setIsBulkDeleting(false);
-    }
+    } finally { setIsBulkDeleting(false); }
+  };
+
+  const handleAddNewPartner = async (name: string) => {
+    await customFetch("/api/partners", { method: "POST", body: JSON.stringify({ name }), headers: { "Content-Type": "application/json" } });
+    await refetchPartners();
+    toast.success(`Partner "${name}" added`);
+  };
+
+  const handleAddNewManager = async (name: string) => {
+    await refetchManagers();
+    toast.success(`Account manager "${name}" will appear after saving a lead`);
   };
 
   const InputCls = "w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring";
   const SelectCls = "px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+
+  const filterCount = filterStatuses.length + filterPriorities.length + filterPartnerNames.length + filterAccountManagerNames.length + (filterAgentId ? 1 : 0) + (search ? 1 : 0);
 
   return (
     <div className="p-6 space-y-4 max-w-7xl mx-auto">
@@ -264,35 +377,105 @@ export default function AdminLeads() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); setSelectedIds(new Set()); }}
-            placeholder="Search by name, mobile, email..."
-            className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+      <div className="bg-card border border-card-border rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">Filters {filterCount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs">{filterCount}</span>}</span>
+          {hasFilters && (
+            <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <X size={12} /> Clear all filters
+            </button>
+          )}
         </div>
-        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); setSelectedIds(new Set()); }} className={SelectCls}>
-          <option value="">All Statuses</option>
-          {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-        </select>
-        <select value={filterPriority} onChange={e => { setFilterPriority(e.target.value); setPage(1); setSelectedIds(new Set()); }} className={SelectCls}>
-          <option value="">All Priorities</option>
-          {ALL_PRIORITIES.map(p => <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
-        </select>
-        <select value={filterAgentId} onChange={e => { setFilterAgentId(e.target.value); setPage(1); setSelectedIds(new Set()); }} className={SelectCls}>
-          <option value="">All Agents</option>
-          {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-        <input value={filterPartnerName} onChange={e => { setFilterPartnerName(e.target.value); setPage(1); setSelectedIds(new Set()); }}
-          placeholder="Filter by Partner..."
-          className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-40" />
-        <input value={filterAccountManagerName} onChange={e => { setFilterAccountManagerName(e.target.value); setPage(1); setSelectedIds(new Set()); }}
-          placeholder="Filter by Acct Mgr..."
-          className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-40" />
+        <div className="flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-48">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); setSelectedIds(new Set()); }}
+              placeholder="Search by name, mobile, email..."
+              className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+
+          <MultiSelectDropdown
+            options={statusOptions}
+            selected={filterStatuses}
+            onChange={v => { setFilterStatuses(v); setPage(1); setSelectedIds(new Set()); }}
+            placeholder="All Statuses"
+            searchPlaceholder="Search statuses..."
+            maxWidth="w-44"
+          />
+
+          <MultiSelectDropdown
+            options={priorityOptions}
+            selected={filterPriorities}
+            onChange={v => { setFilterPriorities(v); setPage(1); setSelectedIds(new Set()); }}
+            placeholder="All Priorities"
+            searchPlaceholder="Search priorities..."
+            maxWidth="w-40"
+          />
+
+          <select value={filterAgentId} onChange={e => { setFilterAgentId(e.target.value); setPage(1); setSelectedIds(new Set()); }} className={SelectCls}>
+            <option value="">All Agents</option>
+            {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+
+          <MultiSelectDropdown
+            options={partnerOptions}
+            selected={filterPartnerNames}
+            onChange={v => { setFilterPartnerNames(v); setPage(1); setSelectedIds(new Set()); }}
+            placeholder="All Partners"
+            searchPlaceholder="Search partners..."
+            maxWidth="w-44"
+          />
+
+          <MultiSelectDropdown
+            options={managerOptions}
+            selected={filterAccountManagerNames}
+            onChange={v => { setFilterAccountManagerNames(v); setPage(1); setSelectedIds(new Set()); }}
+            placeholder="All Account Mgrs"
+            searchPlaceholder="Search managers..."
+            maxWidth="w-44"
+          />
+        </div>
+
+        {/* Active filter chips */}
         {hasFilters && (
-          <button onClick={clearFilters} className="flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
-            <X size={14} /> Clear
-          </button>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {search && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-xs text-foreground border border-border">
+                Search: "{search}"
+                <button onClick={() => { setSearch(""); setPage(1); }} className="hover:text-destructive"><X size={11} /></button>
+              </span>
+            )}
+            {filterStatuses.map(s => (
+              <span key={s} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/30 text-xs text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                {STATUS_LABELS[s]}
+                <button onClick={() => setFilterStatuses(p => p.filter(v => v !== s))} className="hover:text-destructive"><X size={11} /></button>
+              </span>
+            ))}
+            {filterPriorities.map(p => (
+              <span key={p} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-950/30 text-xs text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                {PRIORITY_LABELS[p]}
+                <button onClick={() => setFilterPriorities(prev => prev.filter(v => v !== p))} className="hover:text-destructive"><X size={11} /></button>
+              </span>
+            ))}
+            {filterPartnerNames.map(n => (
+              <span key={n} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 dark:bg-purple-950/30 text-xs text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                <Briefcase size={10} /> {n}
+                <button onClick={() => setFilterPartnerNames(p => p.filter(v => v !== n))} className="hover:text-destructive"><X size={11} /></button>
+              </span>
+            ))}
+            {filterAccountManagerNames.map(n => (
+              <span key={n} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-950/30 text-xs text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800">
+                <UserCog size={10} /> {n}
+                <button onClick={() => setFilterAccountManagerNames(p => p.filter(v => v !== n))} className="hover:text-destructive"><X size={11} /></button>
+              </span>
+            ))}
+            {filterAgentId && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-xs text-foreground border border-border">
+                Agent: {agents.find(a => String(a.id) === filterAgentId)?.name ?? filterAgentId}
+                <button onClick={() => setFilterAgentId("")} className="hover:text-destructive"><X size={11} /></button>
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -301,17 +484,12 @@ export default function AdminLeads() {
         <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-lg">
           <span className="text-sm font-medium text-foreground">{selectedIds.size} lead{selectedIds.size !== 1 ? "s" : ""} selected</span>
           <div className="flex gap-2 ml-auto">
-            <button
-              onClick={() => { setShowBulkAssign(true); setBulkAssignAgentId(""); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
+            <button onClick={() => { setShowBulkAssign(true); setBulkAssignAgentId(""); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
               <UserCheck size={14} /> Bulk Assign
             </button>
-            <button
-              onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors disabled:opacity-60"
-            >
+            <button onClick={handleBulkDelete} disabled={isBulkDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors disabled:opacity-60">
               {isBulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Bulk Delete
             </button>
             <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
@@ -328,6 +506,7 @@ export default function AdminLeads() {
         <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
           <Target size={36} className="mb-3 opacity-30" />
           <p className="font-medium">{hasFilters ? "No leads match your filters" : "No leads yet"}</p>
+          {hasFilters && <button onClick={clearFilters} className="mt-2 text-sm text-primary hover:underline">Clear filters</button>}
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-xl overflow-hidden">
@@ -430,26 +609,30 @@ export default function AdminLeads() {
               <div className="grid grid-cols-2 gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">
-                    Partner Name <span className="text-destructive">*</span>
+                    Partner <span className="text-destructive">*</span>
                   </label>
-                  <input
+                  <SearchableSelect
                     value={form.partnerName}
-                    onChange={e => setForm(x => ({ ...x, partnerName: e.target.value }))}
-                    placeholder="e.g. Acme Partners"
-                    className={InputCls}
-                    required
+                    onChange={v => setForm(x => ({ ...x, partnerName: v }))}
+                    options={partners.map(p => ({ value: p.name, label: p.name }))}
+                    placeholder="Select partner..."
+                    onAddNew={handleAddNewPartner}
+                    addNewLabel="Add new partner"
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">
-                    Account Manager Name <span className="text-destructive">*</span>
+                    Account Manager <span className="text-destructive">*</span>
                   </label>
-                  <input
+                  <SearchableSelect
                     value={form.accountManagerName}
-                    onChange={e => setForm(x => ({ ...x, accountManagerName: e.target.value }))}
-                    placeholder="e.g. John Smith"
-                    className={InputCls}
-                    required
+                    onChange={v => setForm(x => ({ ...x, accountManagerName: v }))}
+                    options={managers.map(m => ({ value: m, label: m }))}
+                    placeholder="Select manager..."
+                    onAddNew={async (name) => { setForm(x => ({ ...x, accountManagerName: name })); await handleAddNewManager(name); }}
+                    addNewLabel="Add new manager"
+                    className="w-full"
                   />
                 </div>
               </div>
@@ -520,11 +703,8 @@ export default function AdminLeads() {
             </select>
             <div className="flex gap-3">
               <button onClick={() => setShowBulkAssign(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm hover:bg-muted">Cancel</button>
-              <button
-                onClick={handleBulkAssign}
-                disabled={!bulkAssignAgentId || isBulkAssigning}
-                className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60"
-              >
+              <button onClick={handleBulkAssign} disabled={!bulkAssignAgentId || isBulkAssigning}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2.5 rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
                 {isBulkAssigning && <Loader2 size={14} className="animate-spin" />} Assign All
               </button>
             </div>

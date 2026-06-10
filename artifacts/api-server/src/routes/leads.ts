@@ -102,14 +102,44 @@ router.get("/leads", requireAuth, async (req, res): Promise<void> => {
     conditions.push(eq(leadsTable.assignedAgentId, parseInt(agentId, 10)));
   }
 
-  if (status) conditions.push(eq(leadsTable.status, status));
-  if (priority) conditions.push(eq(leadsTable.priority, priority));
+  if (status) {
+    const statuses = status.split(",").map(s => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      conditions.push(eq(leadsTable.status, statuses[0]));
+    } else if (statuses.length > 1) {
+      conditions.push(inArray(leadsTable.status, statuses) as ReturnType<typeof eq>);
+    }
+  }
+  if (priority) {
+    const priorities = priority.split(",").map(p => p.trim()).filter(Boolean);
+    if (priorities.length === 1) {
+      conditions.push(eq(leadsTable.priority, priorities[0]));
+    } else if (priorities.length > 1) {
+      conditions.push(inArray(leadsTable.priority, priorities) as ReturnType<typeof eq>);
+    }
+  }
   if (city) conditions.push(ilike(leadsTable.city, `%${city}%`));
   if (source) conditions.push(eq(leadsTable.source, source));
   if (followUpFrom) conditions.push(gte(leadsTable.followUpDate, new Date(followUpFrom)));
   if (followUpTo) conditions.push(lte(leadsTable.followUpDate, new Date(followUpTo)));
-  if (partnerName) conditions.push(ilike(leadsTable.partnerName, `%${partnerName}%`));
-  if (accountManagerName) conditions.push(ilike(leadsTable.accountManagerName, `%${accountManagerName}%`));
+  if (partnerName) {
+    const names = partnerName.split(",").map(n => n.trim()).filter(Boolean);
+    if (names.length === 1) {
+      conditions.push(ilike(leadsTable.partnerName, `%${names[0]}%`));
+    } else if (names.length > 1) {
+      const orCond = or(...names.map(n => ilike(leadsTable.partnerName, `%${n}%`)))!;
+      conditions.push(orCond as ReturnType<typeof eq>);
+    }
+  }
+  if (accountManagerName) {
+    const names = accountManagerName.split(",").map(n => n.trim()).filter(Boolean);
+    if (names.length === 1) {
+      conditions.push(ilike(leadsTable.accountManagerName, `%${names[0]}%`));
+    } else if (names.length > 1) {
+      const orCond = or(...names.map(n => ilike(leadsTable.accountManagerName, `%${n}%`)))!;
+      conditions.push(orCond as ReturnType<typeof eq>);
+    }
+  }
 
   if (search) {
     const searchCond = or(
@@ -687,6 +717,15 @@ router.get("/leads/:id/activities", requireAuth, async (req, res): Promise<void>
     description: a.description, agentId: a.agentId, agentName: agentMap[a.agentId] ?? "Unknown",
     createdAt: a.createdAt.toISOString(),
   })));
+});
+
+router.get("/leads/managers", requireAuth, async (_req, res): Promise<void> => {
+  const rows = await db
+    .selectDistinct({ name: leadsTable.accountManagerName })
+    .from(leadsTable)
+    .where(sql`${leadsTable.accountManagerName} IS NOT NULL AND ${leadsTable.accountManagerName} != ''`)
+    .orderBy(leadsTable.accountManagerName);
+  res.json(rows.map(r => r.name).filter(Boolean));
 });
 
 export default router;

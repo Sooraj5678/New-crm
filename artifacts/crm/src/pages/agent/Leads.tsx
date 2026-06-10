@@ -2,19 +2,20 @@ import { useState } from "react";
 import { useListLeads } from "@workspace/api-client-react";
 import { Search, ChevronLeft, ChevronRight, Loader2, Target, X, Briefcase, UserCog } from "lucide-react";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { MultiSelectDropdown } from "@/components/MultiSelectDropdown";
 import { formatDate, STATUS_LABELS, ALL_STATUSES } from "@/lib/utils";
 import { Link } from "wouter";
 
 export default function AgentLeads() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [filterPartnerName, setFilterPartnerName] = useState("");
   const [filterAccountManagerName, setFilterAccountManagerName] = useState("");
 
   const params: Record<string, string | number> = { page, limit: 20 };
   if (search) params.search = search;
-  if (filterStatus) params.status = filterStatus;
+  if (filterStatuses.length > 0) params.status = filterStatuses.join(",");
   if (filterPartnerName) params.partnerName = filterPartnerName;
   if (filterAccountManagerName) params.accountManagerName = filterAccountManagerName;
 
@@ -22,13 +23,13 @@ export default function AgentLeads() {
 
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
-  const hasFilters = !!(search || filterStatus || filterPartnerName || filterAccountManagerName);
+  const hasFilters = !!(search || filterStatuses.length || filterPartnerName || filterAccountManagerName);
 
   const clearFilters = () => {
-    setSearch(""); setFilterStatus(""); setFilterPartnerName(""); setFilterAccountManagerName(""); setPage(1);
+    setSearch(""); setFilterStatuses([]); setFilterPartnerName(""); setFilterAccountManagerName(""); setPage(1);
   };
 
-  const SelectCls = "px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+  const statusOptions = ALL_STATUSES.map(s => ({ value: s, label: STATUS_LABELS[s] }));
 
   return (
     <div className="p-6 space-y-4 max-w-5xl mx-auto">
@@ -44,16 +45,23 @@ export default function AgentLeads() {
             placeholder="Search by name, mobile, company..."
             className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
-        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className={SelectCls}>
-          <option value="">All Statuses</option>
-          {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-        </select>
+
+        <MultiSelectDropdown
+          options={statusOptions}
+          selected={filterStatuses}
+          onChange={v => { setFilterStatuses(v); setPage(1); }}
+          placeholder="All Statuses"
+          searchPlaceholder="Search statuses..."
+          maxWidth="w-44"
+        />
+
         <input value={filterPartnerName} onChange={e => { setFilterPartnerName(e.target.value); setPage(1); }}
           placeholder="Search by Partner..."
           className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-40" />
         <input value={filterAccountManagerName} onChange={e => { setFilterAccountManagerName(e.target.value); setPage(1); }}
           placeholder="Search by Acct Mgr..."
           className="px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring w-40" />
+
         {hasFilters && (
           <button onClick={clearFilters} className="flex items-center gap-1 px-3 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted">
             <X size={14} /> Clear
@@ -61,12 +69,25 @@ export default function AgentLeads() {
         )}
       </div>
 
+      {/* Active filter chips */}
+      {filterStatuses.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {filterStatuses.map(s => (
+            <span key={s} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/30 text-xs text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              {STATUS_LABELS[s]}
+              <button onClick={() => setFilterStatuses(p => p.filter(v => v !== s))} className="hover:text-destructive"><X size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center h-48 text-muted-foreground"><Loader2 size={24} className="animate-spin mr-2" /> Loading...</div>
       ) : !data?.leads.length ? (
         <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
           <Target size={36} className="mb-3 opacity-30" />
           <p className="font-medium">{hasFilters ? "No leads match your filters" : "No leads assigned to you"}</p>
+          {hasFilters && <button onClick={clearFilters} className="mt-2 text-sm text-primary hover:underline">Clear filters</button>}
         </div>
       ) : (
         <div className="bg-card border border-card-border rounded-xl overflow-hidden">
@@ -83,7 +104,7 @@ export default function AgentLeads() {
                 {data.leads.map(lead => (
                   <tr key={lead.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
-                      <Link href={`/agent/leads/${lead.id}`}>
+                      <Link href={`/leads/${lead.id}`}>
                         <div className="font-medium text-foreground hover:text-primary cursor-pointer transition-colors">{lead.name}</div>
                       </Link>
                       <div className="text-xs text-muted-foreground">{lead.company ?? lead.email ?? ""}</div>
@@ -108,7 +129,7 @@ export default function AgentLeads() {
                     <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDate(lead.followUpDate)}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{formatDate(lead.updatedAt)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/agent/leads/${lead.id}`}>
+                      <Link href={`/leads/${lead.id}`}>
                         <button className="text-xs text-primary hover:underline">View</button>
                       </Link>
                     </td>
@@ -117,12 +138,13 @@ export default function AgentLeads() {
               </tbody>
             </table>
           </div>
+
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/20">
-              <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
+              <span className="text-xs text-muted-foreground">Page {page} of {totalPages} · {total} total</span>
               <div className="flex gap-1">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-40"><ChevronLeft size={15} /></button>
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-40"><ChevronRight size={15} /></button>
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-40 transition-colors"><ChevronLeft size={15} /></button>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-40 transition-colors"><ChevronRight size={15} /></button>
               </div>
             </div>
           )}
